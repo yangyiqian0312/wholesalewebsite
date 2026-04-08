@@ -1,5 +1,8 @@
 node_modules/
 .next/
+.env.local
+*.log
+*.err
 backend/node_modules/
 backend/dist/
 backend/.env
