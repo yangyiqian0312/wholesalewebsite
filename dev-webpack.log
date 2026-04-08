@@ -1,0 +1,4 @@
+
+> wholesalewebsite@0.1.0 dev
+> next dev --webpack --hostname 0.0.0.0 --port 3000
+

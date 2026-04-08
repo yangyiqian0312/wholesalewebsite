@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model CatalogProduct {
+  id                  String   @id @default(cuid())
+  inflowProductId     String   @unique
+  inflowEntityId      String?
+  name                String
+  sku                 String?
+  barcode             String?
+  upc                 String?
+  unitPrice           Decimal? @db.Decimal(12, 2)
+  totalQuantityOnHand Int      @default(0)
+  isActive            Boolean  @default(true)
+  releaseDate         String?
+  rawPayload          Json
+  lastSeenAt          DateTime @default(now())
+  syncedAt            DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([sku])
+  @@index([upc])
+  @@index([barcode])
+  @@index([isActive, totalQuantityOnHand])
+}
+
+model AccountApplication {
+  id                        String            @id @default(cuid())
+  publicEditToken           String?           @unique
+  publicRegistrationToken   String?           @unique
+  contactName               String
+  email                     String
+  phone                     String
+  businessName              String
+  businessType              String
+  companyAddress            String
+  city                      String
+  stateProvince             String
+  zipPostalCode             String
+  country                   String
+  website                   String?
+  storeMarketplaceLink      String?
+  businessModel             String
+  salesChannels             String[]
+  physicalStoreAddress      String?
+  onlineChannelNotes        String?
+  productInterests          String[]
+  expectedPurchaseVolume    String
+  hasResellerPermitOrTaxId  Boolean
+  uploadedDocumentNames     String[]
+  documents                 AccountApplicationDocument[]
+  orders                    WholesaleOrder[]
+  status                    ApplicationStatus @default(PENDING)
+  deniedReason              String?
+  reviewedByEmail           String?
+  reviewedAt                DateTime?
+  approvedInviteSentAt      DateTime?
+  accountRegisteredAt       DateTime?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+model AccountApplicationDocument {
+  id               String             @id @default(cuid())
+  applicationId    String
+  application      AccountApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  originalFilename String
+  storedFilename   String
+  mimeType         String?
+  fileSizeBytes    Int
+  createdAt        DateTime           @default(now())
+
+  @@index([applicationId, createdAt])
+}
+
+model WholesaleOrder {
+  id                    String             @id @default(cuid())
+  applicationId         String
+  application           AccountApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  customerEmail         String
+  customerName          String
+  businessName          String
+  inflowSalesOrderId    String?
+  inflowOrderNumber     String?
+  source                String
+  subtotalAmount        Decimal            @db.Decimal(12, 2)
+  submittedAt           DateTime           @default(now())
+  lines                 WholesaleOrderLine[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([applicationId, submittedAt])
+  @@index([customerEmail, submittedAt])
+  @@index([submittedAt])
+}
+
+model WholesaleOrderLine {
+  id             String         @id @default(cuid())
+  orderId        String
+  order          WholesaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId      String
+  productName    String?
+  productCode    String?
+  quantity       Int
+  unitPrice      Decimal        @db.Decimal(12, 2)
+  lineTotal      Decimal        @db.Decimal(12, 2)
+  createdAt      DateTime       @default(now())
+
+  @@index([orderId, createdAt])
+  @@index([productId])
+}

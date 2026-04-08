@@ -1,0 +1,140 @@
+export const heroStats = [
+  { label: "Active SKUs", value: "324" },
+  { label: "Pre-Orders", value: "58" },
+  { label: "Quote Review", value: "Required" },
+];
+
+export const activeFilters = ["Pokemon", "In Stock", "Mega Evolution"];
+
+export const filterGroups = [
+  { title: "Search Filter", type: "search", value: "pokemon" },
+  {
+    title: "Category",
+    type: "options",
+    options: [
+      { label: "Trading Card Games", count: 324, checked: true },
+      { label: "Accessories", count: 64 },
+      { label: "Sleeves", count: 18 },
+    ],
+  },
+  {
+    title: "Brand",
+    type: "options",
+    options: [
+      { label: "Pokemon", count: 196, checked: true },
+      { label: "One Piece", count: 47 },
+      { label: "Yu-Gi-Oh!", count: 38 },
+      { label: "Dragon Ball Super", count: 21 },
+    ],
+  },
+  {
+    title: "Availability",
+    type: "options",
+    options: [
+      { label: "In Stock", count: 112, checked: true },
+      { label: "Pre-Order", count: 58 },
+      { label: "Coming Soon", count: 13 },
+    ],
+  },
+  {
+    title: "Series / Set",
+    type: "options",
+    options: [
+      { label: "Mega Evolution", count: 29, checked: true },
+      { label: "Destined Rivals", count: 17 },
+      { label: "Journey Together", count: 14 },
+    ],
+  },
+  {
+    title: "Price Range",
+    type: "range",
+    range: ["$20", "$150"],
+  },
+] as const;
+
+export const statusToneMap = {
+  "In Stock": "status-success",
+  "Low Stock": "status-warning",
+  "Out of Stock": "status-danger",
+  "Pre-Order": "status-warning-soft",
+  "New Arrival": "status-info",
+  "Hot Title": "status-info",
+} as const;
+
+export const catalogProducts = [
+  {
+    code: "PKM-ME01-BB36",
+    imageLabel: "POKEMON BOX",
+    name: "Pokemon ME01 Mega Evolution Booster Box (36)",
+    meta: "Pokemon / Mega Evolution / Sealed Booster Display",
+    sku: "PKM-ME01-BB36",
+    upc: "1962141136144",
+    wholesale: "$84.00",
+    wholesaleNote: "Quote subject to review",
+    msrp: "$143.64",
+    availability: "84 units",
+    releaseDate: "2026-04-12",
+    quantity: "6",
+    tags: ["In Stock", "New Arrival"],
+  },
+  {
+    code: "PKM-ME02-ETB10",
+    imageLabel: "POKEMON ETB",
+    name: "Pokemon ME02 Phantom Flames Elite Trainer Box (10)",
+    meta: "Pokemon / Phantom Flames / Elite Trainer Box",
+    sku: "PKM-ME02-ETB10",
+    upc: "1962141248130",
+    wholesale: "$31.50",
+    wholesaleNote: "Final qty reviewed by rep",
+    msrp: "$54.99",
+    availability: "Pre-Order",
+    releaseDate: "2026-05-08",
+    quantity: "10",
+    tags: ["Pre-Order"],
+  },
+  {
+    code: "PKM-DR-BND25",
+    imageLabel: "POKEMON BUNDLE",
+    name: "Pokemon Destined Rivals Booster Bundle (25)",
+    meta: "Pokemon / Destined Rivals / Booster Bundle",
+    sku: "PKM-DR-BND25",
+    upc: "1962141504781",
+    wholesale: "$52.00",
+    wholesaleNote: "Case pricing available",
+    msrp: "$89.99",
+    availability: "47 units",
+    releaseDate: "2026-03-28",
+    quantity: "4",
+    tags: ["In Stock"],
+  },
+  {
+    code: "PKM-JT-SLV144",
+    imageLabel: "POKEMON SLEEVE",
+    name: "Pokemon Journey Together Sleeved Booster (144)",
+    meta: "Pokemon / Journey Together / Sleeved Booster",
+    sku: "PKM-JT-SLV144",
+    upc: "1962141369430",
+    wholesale: "$468.00",
+    wholesaleNote: "Allocation may apply",
+    msrp: "$719.99",
+    availability: "12 cases",
+    releaseDate: "2026-02-14",
+    quantity: "1",
+    tags: ["Low Stock"],
+  },
+  {
+    code: "OP-11-BB24",
+    imageLabel: "ONE PIECE BOX",
+    name: "One Piece OP-11 Booster Box (24)",
+    meta: "One Piece / OP-11 / Booster Display",
+    sku: "OP-11-BB24",
+    upc: "810059789411",
+    wholesale: "$62.50",
+    wholesaleNote: "Final approval required",
+    msrp: "$107.76",
+    availability: "Pre-Order",
+    releaseDate: "2026-06-02",
+    quantity: "8",
+    tags: ["Pre-Order", "Hot Title"],
+  },
+] as const;

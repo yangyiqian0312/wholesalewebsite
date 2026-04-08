@@ -1,0 +1,9 @@
+node_modules/
+.next/
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/*.log
+backend/*.err
+backend/inflow-docs.html
+backend/inflow-swagger.json
