@@ -1,6 +1,14 @@
 import { fetchAdminListings } from "../_lib/admin-data";
 import { updateListingAction } from "../_lib/listing-actions";
 
+function buildPaginationItems(currentPage: number, totalPages: number) {
+  const pages = new Set<number>([1, totalPages, currentPage, currentPage - 1, currentPage + 1]);
+
+  return Array.from(pages)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((left, right) => left - right);
+}
+
 export default async function AdminListingsPage({
   searchParams,
 }: {
@@ -16,18 +24,28 @@ export default async function AdminListingsPage({
   const smartParam = Array.isArray(resolvedSearchParams.smart)
     ? resolvedSearchParams.smart[0]
     : resolvedSearchParams.smart;
+  const pageParam = Array.isArray(resolvedSearchParams.page)
+    ? resolvedSearchParams.page[0]
+    : resolvedSearchParams.page;
   const listingStatusParam = Array.isArray(resolvedSearchParams.statusFilter)
     ? resolvedSearchParams.statusFilter[0]
     : resolvedSearchParams.statusFilter;
   const smart = smartParam?.trim() || "";
+  const page = Math.max(1, Number(pageParam || "1") || 1);
   const listingStatus =
     listingStatusParam === "active" || listingStatusParam === "oos"
       ? listingStatusParam
       : undefined;
-  const listingsResponse = await fetchAdminListings({ smart, listingStatus });
+  const listingsResponse = await fetchAdminListings({ smart, listingStatus, page });
   const listings = listingsResponse.items;
 
-  function buildListingsHref(nextStatus?: "active" | "oos") {
+  function buildListingsHref({
+    nextStatus,
+    nextPage,
+  }: {
+    nextStatus?: "active" | "oos";
+    nextPage?: number;
+  } = {}) {
     const query = new URLSearchParams();
 
     if (smart) {
@@ -38,9 +56,26 @@ export default async function AdminListingsPage({
       query.set("statusFilter", nextStatus);
     }
 
+    if (nextPage && nextPage > 1) {
+      query.set("page", String(nextPage));
+    }
+
     const queryString = query.toString();
     return queryString ? `/admin/listings?${queryString}` : "/admin/listings";
   }
+
+  const paginationItems = buildPaginationItems(
+    listingsResponse.pagination.page,
+    listingsResponse.pagination.totalPages,
+  );
+  const visibleStart =
+    listingsResponse.pagination.totalItems === 0
+      ? 0
+      : (listingsResponse.pagination.page - 1) * listingsResponse.pagination.pageSize + 1;
+  const visibleEnd = Math.min(
+    listingsResponse.pagination.page * listingsResponse.pagination.pageSize,
+    listingsResponse.pagination.totalItems,
+  );
 
   return (
     <div className="admin-layout">
@@ -80,14 +115,14 @@ export default async function AdminListingsPage({
         </a>
         <a
           className={`panel admin-summary-card admin-summary-link${listingStatus === "active" ? " is-active" : ""}`}
-          href={buildListingsHref("active")}
+          href={buildListingsHref({ nextStatus: "active" })}
         >
           <span>Active</span>
           <strong>{listingsResponse.summary.activeListings}</strong>
         </a>
         <a
           className={`panel admin-summary-card admin-summary-link${listingStatus === "oos" ? " is-active" : ""}`}
-          href={buildListingsHref("oos")}
+          href={buildListingsHref({ nextStatus: "oos" })}
         >
           <span>Out of Stock</span>
           <strong>{listingsResponse.summary.outOfStockListings}</strong>
@@ -118,10 +153,10 @@ export default async function AdminListingsPage({
           {smart
             ? `Showing ${listings.length} listing${listings.length === 1 ? "" : "s"} for "${smart}".`
             : listingStatus === "active"
-              ? `Showing all ${listings.length} active listing${listings.length === 1 ? "" : "s"}.`
+              ? `Showing ${visibleStart}-${visibleEnd} of ${listingsResponse.summary.activeListings} active listing${listingsResponse.summary.activeListings === 1 ? "" : "s"}.`
               : listingStatus === "oos"
-                ? `Showing all ${listings.length} out-of-stock listing${listings.length === 1 ? "" : "s"}.`
-                : "Search uses the same local catalog matching logic as the customer catalog."}
+                ? `Showing ${visibleStart}-${visibleEnd} of ${listingsResponse.summary.outOfStockListings} out-of-stock listing${listingsResponse.summary.outOfStockListings === 1 ? "" : "s"}.`
+                : `Showing ${visibleStart}-${visibleEnd} of ${listingsResponse.summary.totalListings} listings.`}
         </p>
       </section>
 
@@ -180,6 +215,58 @@ export default async function AdminListingsPage({
             </form>
           </article>
         ))}
+      </section>
+
+      <section className="panel table-panel">
+        <div className="pagination">
+          <div className="results-meta">
+            {visibleStart}-{visibleEnd} of {listingsResponse.pagination.totalItems} items
+          </div>
+          <div className="pagination-controls">
+            {listingsResponse.pagination.page > 1 ? (
+              <a
+                className="page-button"
+                href={buildListingsHref({
+                  nextStatus: listingStatus,
+                  nextPage: listingsResponse.pagination.page - 1,
+                })}
+              >
+                Prev
+              </a>
+            ) : (
+              <span className="page-button disabled">Prev</span>
+            )}
+            {paginationItems.map((paginationPage) => (
+              <a
+                className={
+                  paginationPage === listingsResponse.pagination.page
+                    ? "page-button active"
+                    : "page-button"
+                }
+                href={buildListingsHref({
+                  nextStatus: listingStatus,
+                  nextPage: paginationPage,
+                })}
+                key={paginationPage}
+              >
+                {paginationPage}
+              </a>
+            ))}
+            {listingsResponse.pagination.page < listingsResponse.pagination.totalPages ? (
+              <a
+                className="page-button"
+                href={buildListingsHref({
+                  nextStatus: listingStatus,
+                  nextPage: listingsResponse.pagination.page + 1,
+                })}
+              >
+                Next
+              </a>
+            ) : (
+              <span className="page-button disabled">Next</span>
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );

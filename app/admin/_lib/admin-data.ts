@@ -118,14 +118,16 @@ export async function fetchAdminApplicationById(applicationId: string) {
 export async function fetchAdminListings({
   smart,
   listingStatus,
+  page,
 }: {
   smart?: string;
   listingStatus?: "active" | "oos";
+  page?: number;
 } = {}) {
   const query = new URLSearchParams({
     inStockOnly: "false",
-    page: "1",
-    pageSize: "5000",
+    page: String(page ?? 1),
+    pageSize: "24",
   });
 
   if (smart?.trim()) {

@@ -100,7 +100,19 @@ export async function syncInflowProductsToDatabase() {
         inflowProductId: mappedProduct.inflowProductId,
       },
       create: mappedProduct,
-      update: mappedProduct,
+      update: {
+        inflowEntityId: mappedProduct.inflowEntityId,
+        name: mappedProduct.name,
+        sku: mappedProduct.sku,
+        barcode: mappedProduct.barcode,
+        upc: mappedProduct.upc,
+        unitPrice: mappedProduct.unitPrice,
+        totalQuantityOnHand: mappedProduct.totalQuantityOnHand,
+        releaseDate: mappedProduct.releaseDate,
+        rawPayload: mappedProduct.rawPayload,
+        lastSeenAt: mappedProduct.lastSeenAt,
+        syncedAt: mappedProduct.syncedAt,
+      },
     });
 
     syncedCount += 1;
