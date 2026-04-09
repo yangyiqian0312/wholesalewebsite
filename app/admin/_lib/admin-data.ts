@@ -88,6 +88,11 @@ type AdminListingsResponse = {
     totalItems: number;
     totalPages: number;
   };
+  summary: {
+    totalListings: number;
+    activeListings: number;
+    outOfStockListings: number;
+  };
 };
 
 export async function fetchAdminApplications() {
@@ -112,17 +117,23 @@ export async function fetchAdminApplicationById(applicationId: string) {
 
 export async function fetchAdminListings({
   smart,
+  listingStatus,
 }: {
   smart?: string;
+  listingStatus?: "active" | "oos";
 } = {}) {
   const query = new URLSearchParams({
     inStockOnly: "false",
     page: "1",
-    pageSize: "100",
+    pageSize: "5000",
   });
 
   if (smart?.trim()) {
     query.set("smart", smart.trim());
+  }
+
+  if (listingStatus) {
+    query.set("listingStatus", listingStatus);
   }
 
   const response = await fetch(
@@ -137,7 +148,7 @@ export async function fetchAdminListings({
   }
 
   const payload = (await response.json()) as AdminListingsResponse;
-  return payload.items;
+  return payload;
 }
 
 export async function fetchAdminOrders() {

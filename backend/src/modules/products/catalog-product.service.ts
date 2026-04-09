@@ -12,6 +12,7 @@ type FetchCatalogProductsParams = {
   page?: number;
   pageSize?: number;
   category?: CatalogCategoryValue;
+  listingStatus?: "active" | "oos";
 };
 
 type RawCatalogProductPayload = {
@@ -105,6 +106,8 @@ function buildCategoryWhere(category?: CatalogCategoryValue) {
 function buildCatalogWhere(params: FetchCatalogProductsParams) {
   return {
     ...(params.inStockOnly ? { isActive: true, totalQuantityOnHand: { gt: 0 } } : {}),
+    ...(params.listingStatus === "active" ? { isActive: true } : {}),
+    ...(params.listingStatus === "oos" ? { totalQuantityOnHand: { lte: 0 } } : {}),
     ...buildSmartSearchWhere(params.smart),
     ...buildCategoryWhere(params.category),
   };
@@ -112,16 +115,33 @@ function buildCatalogWhere(params: FetchCatalogProductsParams) {
 
 export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProductsParams) {
   const page = Math.max(1, params.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+  const pageSize = Math.min(5000, Math.max(1, params.pageSize ?? 20));
   const where = buildCatalogWhere(params);
+  const summaryWhere = buildCatalogWhere({
+    ...params,
+    listingStatus: undefined,
+  });
 
-  const [totalItems, products] = await Promise.all([
+  const [totalItems, products, totalListings, activeListings, outOfStockListings] = await Promise.all([
     prisma.catalogProduct.count({ where }),
     prisma.catalogProduct.findMany({
       where,
       orderBy: [{ name: "asc" }, { inflowProductId: "asc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
+    }),
+    prisma.catalogProduct.count({ where: summaryWhere }),
+    prisma.catalogProduct.count({
+      where: {
+        ...summaryWhere,
+        isActive: true,
+      },
+    }),
+    prisma.catalogProduct.count({
+      where: {
+        ...summaryWhere,
+        totalQuantityOnHand: { lte: 0 },
+      },
     }),
   ]);
 
@@ -148,6 +168,11 @@ export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProdu
       pageSize,
       totalItems,
       totalPages: Math.max(1, Math.ceil(totalItems / pageSize)),
+    },
+    summary: {
+      totalListings,
+      activeListings,
+      outOfStockListings,
     },
   };
 }

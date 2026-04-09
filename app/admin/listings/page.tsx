@@ -16,8 +16,31 @@ export default async function AdminListingsPage({
   const smartParam = Array.isArray(resolvedSearchParams.smart)
     ? resolvedSearchParams.smart[0]
     : resolvedSearchParams.smart;
+  const listingStatusParam = Array.isArray(resolvedSearchParams.statusFilter)
+    ? resolvedSearchParams.statusFilter[0]
+    : resolvedSearchParams.statusFilter;
   const smart = smartParam?.trim() || "";
-  const listings = await fetchAdminListings({ smart });
+  const listingStatus =
+    listingStatusParam === "active" || listingStatusParam === "oos"
+      ? listingStatusParam
+      : undefined;
+  const listingsResponse = await fetchAdminListings({ smart, listingStatus });
+  const listings = listingsResponse.items;
+
+  function buildListingsHref(nextStatus?: "active" | "oos") {
+    const query = new URLSearchParams();
+
+    if (smart) {
+      query.set("smart", smart);
+    }
+
+    if (nextStatus) {
+      query.set("statusFilter", nextStatus);
+    }
+
+    const queryString = query.toString();
+    return queryString ? `/admin/listings?${queryString}` : "/admin/listings";
+  }
 
   return (
     <div className="admin-layout">
@@ -48,18 +71,27 @@ export default async function AdminListingsPage({
       ) : null}
 
       <section className="admin-summary-grid">
-        <article className="panel admin-summary-card">
+        <a
+          className={`panel admin-summary-card admin-summary-link${!listingStatus ? " is-active" : ""}`}
+          href={buildListingsHref()}
+        >
           <span>Total Listings</span>
-          <strong>{listings.length}</strong>
-        </article>
-        <article className="panel admin-summary-card">
+          <strong>{listingsResponse.summary.totalListings}</strong>
+        </a>
+        <a
+          className={`panel admin-summary-card admin-summary-link${listingStatus === "active" ? " is-active" : ""}`}
+          href={buildListingsHref("active")}
+        >
           <span>Active</span>
-          <strong>{listings.filter((listing) => listing.isActive).length}</strong>
-        </article>
-        <article className="panel admin-summary-card">
+          <strong>{listingsResponse.summary.activeListings}</strong>
+        </a>
+        <a
+          className={`panel admin-summary-card admin-summary-link${listingStatus === "oos" ? " is-active" : ""}`}
+          href={buildListingsHref("oos")}
+        >
           <span>Out of Stock</span>
-          <strong>{listings.filter((listing) => Number(listing.totalQuantityOnHand) <= 0).length}</strong>
-        </article>
+          <strong>{listingsResponse.summary.outOfStockListings}</strong>
+        </a>
       </section>
 
       <section className="panel admin-listings-search-panel">
@@ -85,12 +117,16 @@ export default async function AdminListingsPage({
         <p className="panel-subtitle">
           {smart
             ? `Showing ${listings.length} listing${listings.length === 1 ? "" : "s"} for "${smart}".`
-            : "Search uses the same local catalog matching logic as the customer catalog."}
+            : listingStatus === "active"
+              ? `Showing all ${listings.length} active listing${listings.length === 1 ? "" : "s"}.`
+              : listingStatus === "oos"
+                ? `Showing all ${listings.length} out-of-stock listing${listings.length === 1 ? "" : "s"}.`
+                : "Search uses the same local catalog matching logic as the customer catalog."}
         </p>
       </section>
 
       <section className="admin-card-stack">
-        {listings.slice(0, 24).map((listing) => (
+        {listings.map((listing) => (
           <article className="panel admin-listing-card" key={listing.productId}>
             <div className="admin-listing-head">
               <div>
