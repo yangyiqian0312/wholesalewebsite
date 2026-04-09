@@ -817,6 +817,14 @@ select {
   padding: 22px;
 }
 
+.admin-listings-bulk-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+}
+
 .admin-listings-search-panel {
   display: grid;
   gap: 12px;
@@ -855,9 +863,15 @@ select {
 
 .admin-listing-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(180px, 1fr)) minmax(220px, 0.9fr) 150px;
+  grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(180px, 1fr)) minmax(220px, 0.9fr);
   gap: 14px;
   align-items: end;
+}
+
+.admin-listing-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
 }
 
 .admin-toggle-field {

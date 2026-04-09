@@ -160,9 +160,27 @@ export default async function AdminListingsPage({
         </p>
       </section>
 
-      <section className="admin-card-stack">
+      <form action={updateListingAction} className="admin-card-stack">
+        <input name="smart" type="hidden" value={smart} />
+        <input name="statusFilter" type="hidden" value={listingStatus ?? ""} />
+        <input name="page" type="hidden" value={String(listingsResponse.pagination.page)} />
+
+        <section className="panel admin-listings-bulk-panel">
+          <div>
+            <strong>Bulk Update This Page</strong>
+            <p className="panel-subtitle">
+              Edit any listing below, then save all {listings.length} visible rows in one submit.
+            </p>
+          </div>
+          <button className="primary-button" name="intent" type="submit" value="bulk">
+            Bulk Update
+          </button>
+        </section>
+
         {listings.map((listing) => (
           <article className="panel admin-listing-card" key={listing.productId}>
+            <input name="productIds" type="hidden" value={listing.productId} />
+
             <div className="admin-listing-head">
               <div>
                 <h2>{listing.name}</h2>
@@ -176,13 +194,10 @@ export default async function AdminListingsPage({
               </span>
             </div>
 
-            <form action={updateListingAction} className="admin-listing-form">
-              <input name="productId" type="hidden" value={listing.productId} />
-              <input name="smart" type="hidden" value={smart} />
-
+            <div className="admin-listing-form">
               <label className="open-account-field">
                 <span>Name</span>
-                <input defaultValue={listing.name} name="name" />
+                <input defaultValue={listing.name} name={`name:${listing.productId}`} />
               </label>
 
               <label className="open-account-field">
@@ -190,7 +205,7 @@ export default async function AdminListingsPage({
                 <input
                   defaultValue={listing.defaultPrice?.unitPrice ?? ""}
                   inputMode="decimal"
-                  name="unitPrice"
+                  name={`unitPrice:${listing.productId}`}
                   placeholder="0.00"
                 />
               </label>
@@ -199,23 +214,34 @@ export default async function AdminListingsPage({
                 <span>Release Date</span>
                 <input
                   defaultValue={listing.lastModifiedDateTime ?? ""}
-                  name="releaseDate"
+                  name={`releaseDate:${listing.productId}`}
                   placeholder="YYYY-MM-DD or source label"
                 />
               </label>
 
               <label className="admin-toggle-field">
-                <input defaultChecked={listing.isActive} name="isActive" type="checkbox" />
+                <input
+                  defaultChecked={listing.isActive}
+                  name={`isActive:${listing.productId}`}
+                  type="checkbox"
+                />
                 <span>Listing is active in local catalog</span>
               </label>
+            </div>
 
-              <button className="primary-button" type="submit">
-                Save Listing
+            <div className="admin-listing-actions">
+              <button
+                className="text-button"
+                name="intent"
+                type="submit"
+                value={`single:${listing.productId}`}
+              >
+                Save This Listing
               </button>
-            </form>
+            </div>
           </article>
         ))}
-      </section>
+      </form>
 
       <section className="panel table-panel">
         <div className="pagination">

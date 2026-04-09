@@ -3,42 +3,95 @@ import { redirect } from "next/navigation";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../utils/backend-api";
 import { requireAdminUser } from "../../../utils/admin-auth";
 
+function buildListingsPath({
+  smart,
+  statusFilter,
+  page,
+}: {
+  smart?: string;
+  statusFilter?: string;
+  page?: string;
+}) {
+  const query = new URLSearchParams();
+
+  if (smart?.trim()) {
+    query.set("smart", smart.trim());
+  }
+
+  if (statusFilter?.trim()) {
+    query.set("statusFilter", statusFilter.trim());
+  }
+
+  if (page?.trim() && page.trim() !== "1") {
+    query.set("page", page.trim());
+  }
+
+  const queryString = query.toString();
+  return queryString ? `/admin/listings?${queryString}` : "/admin/listings";
+}
+
+function parseListingPayload(formData: FormData, productId: string) {
+  const normalizedProductId = productId.trim();
+
+  return {
+    productId: normalizedProductId,
+    body: {
+      name: String(formData.get(`name:${normalizedProductId}`) ?? "").trim(),
+      unitPrice: (() => {
+        const value = String(formData.get(`unitPrice:${normalizedProductId}`) ?? "").trim();
+        return value ? Number(value) : null;
+      })(),
+      releaseDate: (() => {
+        const value = String(formData.get(`releaseDate:${normalizedProductId}`) ?? "").trim();
+        return value || null;
+      })(),
+      isActive: formData.get(`isActive:${normalizedProductId}`) === "on",
+    },
+  };
+}
+
 export async function updateListingAction(formData: FormData) {
   "use server";
 
   await requireAdminUser();
 
-  const productId = String(formData.get("productId") ?? "").trim();
   const smart = String(formData.get("smart") ?? "").trim();
-  const listingsPath = smart ? `/admin/listings?smart=${encodeURIComponent(smart)}` : "/admin/listings";
+  const statusFilter = String(formData.get("statusFilter") ?? "").trim();
+  const page = String(formData.get("page") ?? "").trim();
+  const listingsPath = buildListingsPath({ smart, statusFilter, page });
+  const intent = String(formData.get("intent") ?? "bulk").trim();
 
-  if (!productId) {
-    redirect(smart ? `${listingsPath}&error=missing-product` : "/admin/listings?error=missing-product");
+  const singleProductId = intent.startsWith("single:") ? intent.slice("single:".length).trim() : "";
+  const productIds = singleProductId
+    ? [singleProductId]
+    : formData
+        .getAll("productIds")
+        .map((value) => String(value).trim())
+        .filter(Boolean);
+
+  if (!productIds.length) {
+    redirect(`${listingsPath}${listingsPath.includes("?") ? "&" : "?"}error=missing-product`);
   }
 
-  const unitPriceValue = String(formData.get("unitPrice") ?? "").trim();
-  const releaseDateValue = String(formData.get("releaseDate") ?? "").trim();
+  for (const productId of productIds) {
+    const payload = parseListingPayload(formData, productId);
 
-  const response = await fetch(`${getBackendBaseUrl()}/api/admin/catalog/products/${productId}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      "x-admin-token": getAdminApiToken(),
-    },
-    cache: "no-store",
-    body: JSON.stringify({
-      name: String(formData.get("name") ?? "").trim(),
-      unitPrice: unitPriceValue ? Number(unitPriceValue) : null,
-      releaseDate: releaseDateValue || null,
-      isActive: String(formData.get("isActive") ?? "").trim() === "on",
-    }),
-  });
+    const response = await fetch(`${getBackendBaseUrl()}/api/admin/catalog/products/${payload.productId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-token": getAdminApiToken(),
+      },
+      cache: "no-store",
+      body: JSON.stringify(payload.body),
+    });
 
-  if (!response.ok) {
-    redirect(smart ? `${listingsPath}&error=update-failed` : "/admin/listings?error=update-failed");
+    if (!response.ok) {
+      redirect(`${listingsPath}${listingsPath.includes("?") ? "&" : "?"}error=update-failed`);
+    }
   }
 
   revalidatePath("/admin/listings");
   revalidatePath("/catalog");
-  redirect(smart ? `${listingsPath}&status=updated` : "/admin/listings?status=updated");
+  redirect(`${listingsPath}${listingsPath.includes("?") ? "&" : "?"}status=updated`);
 }
