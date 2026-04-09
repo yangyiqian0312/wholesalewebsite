@@ -3,12 +3,13 @@ import { z } from "zod";
 import { config } from "../../config.js";
 import {
   fetchCatalogCategoryCountsFromDatabase,
+  fetchCatalogProductByInflowIdFromDatabase,
   fetchCatalogProductFromDatabase,
   fetchCatalogProductsFromDatabase,
   updateCatalogProductInDatabase,
 } from "./catalog-product.service.js";
 import { updateCatalogProductSchema } from "./admin-product.types.js";
-import { fetchProducts } from "./product.service.js";
+import { fetchProducts, upsertInflowProduct } from "./product.service.js";
 import { isCatalogCategoryValue } from "./catalog-category-rules.js";
 
 const booleanQueryParam = z
@@ -111,6 +112,67 @@ export async function registerProductRoutes(app: FastifyInstance) {
 
       return reply.status(500).send({
         error: "Failed to update local catalog product",
+      });
+    }
+  });
+
+  app.post("/api/admin/catalog/products/:productId/sync-name-to-inflow", async (request, reply) => {
+    if (!isAuthorizedAdminRequest(request)) {
+      return reply.status(401).send({
+        error: "Unauthorized",
+      });
+    }
+
+    const productId = z.string().min(1).safeParse(
+      (request.params as { productId?: string }).productId,
+    );
+    const name = z
+      .object({
+        name: z.string().trim().min(1),
+      })
+      .safeParse(request.body);
+
+    if (!productId.success) {
+      return reply.status(400).send({
+        error: "Invalid product id",
+      });
+    }
+
+    if (!name.success) {
+      return reply.status(400).send({
+        error: "Invalid product name payload",
+        details: name.error.flatten(),
+      });
+    }
+
+    try {
+      const localProduct = await fetchCatalogProductByInflowIdFromDatabase(productId.data);
+
+      if (!localProduct) {
+        return reply.status(404).send({
+          error: "Product not found",
+        });
+      }
+
+      const basePayload =
+        localProduct.rawPayload &&
+        typeof localProduct.rawPayload === "object" &&
+        !Array.isArray(localProduct.rawPayload)
+          ? (localProduct.rawPayload as Record<string, unknown>)
+          : {};
+
+      const product = await upsertInflowProduct({
+        ...basePayload,
+        productId: localProduct.productId,
+        name: name.data.name,
+      });
+
+      return reply.send(product);
+    } catch (error) {
+      request.log.error(error);
+
+      return reply.status(502).send({
+        error: error instanceof Error ? error.message : "Failed to sync product name to Inflow",
       });
     }
   });

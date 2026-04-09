@@ -1,7 +1,7 @@
 import { inflowRequest } from "../../integrations/inflow/client.js";
 import type { InflowProduct, InflowProductListResponse } from "./product.types.js";
 
-const DEFAULT_INCLUDE = "defaultPrice,productBarcodes,inventoryLines.location,defaultImage";
+const DEFAULT_INCLUDE = "defaultPrice,prices,productBarcodes,inventoryLines.location,defaultImage";
 const INFLOW_PAGE_SIZE = 100;
 const PRODUCT_CACHE_TTL_MS = 5 * 60 * 1000;
 const PRODUCT_STALE_TTL_MS = 30 * 60 * 1000;
@@ -140,4 +140,15 @@ export async function fetchProducts(params: FetchProductsParams) {
   inFlightRequests.set(cacheKey, requestPromise);
 
   return requestPromise;
+}
+
+export async function upsertInflowProduct(payload: Record<string, unknown>) {
+  return inflowRequest<InflowProduct>(
+    "/products",
+    {},
+    {
+      method: "PUT",
+      body: payload,
+    },
+  );
 }

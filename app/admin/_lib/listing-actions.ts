@@ -7,10 +7,12 @@ function buildListingsPath({
   smart,
   statusFilter,
   page,
+  pageSize,
 }: {
   smart?: string;
   statusFilter?: string;
   page?: string;
+  pageSize?: string;
 }) {
   const query = new URLSearchParams();
 
@@ -24,6 +26,10 @@ function buildListingsPath({
 
   if (page?.trim() && page.trim() !== "1") {
     query.set("page", page.trim());
+  }
+
+  if (pageSize?.trim() && pageSize.trim() !== "20") {
+    query.set("pageSize", pageSize.trim());
   }
 
   const queryString = query.toString();
@@ -45,6 +51,10 @@ function parseListingPayload(formData: FormData, productId: string) {
         const value = String(formData.get(`releaseDate:${normalizedProductId}`) ?? "").trim();
         return value || null;
       })(),
+      description: (() => {
+        const value = String(formData.get(`description:${normalizedProductId}`) ?? "").trim();
+        return value || null;
+      })(),
       isActive: formData.get(`isActive:${normalizedProductId}`) === "on",
     },
   };
@@ -58,7 +68,8 @@ export async function updateListingAction(formData: FormData) {
   const smart = String(formData.get("smart") ?? "").trim();
   const statusFilter = String(formData.get("statusFilter") ?? "").trim();
   const page = String(formData.get("page") ?? "").trim();
-  const listingsPath = buildListingsPath({ smart, statusFilter, page });
+  const pageSize = String(formData.get("pageSize") ?? "").trim();
+  const listingsPath = buildListingsPath({ smart, statusFilter, page, pageSize });
   const intent = String(formData.get("intent") ?? "bulk").trim();
 
   const singleProductId = intent.startsWith("single:") ? intent.slice("single:".length).trim() : "";

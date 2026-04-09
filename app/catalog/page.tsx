@@ -116,7 +116,12 @@ function renderPriceCell(product: Product, canSeePrice: boolean) {
     return maybeWrapWithLink(
       product.productPath,
       "row-link row-link-stack",
-      <div className="value-main">{product.wholesale}</div>,
+      <div className="catalog-price-stack">
+        {product.originalPrice !== "N/A" ? (
+          <div className="value-compare">{product.originalPrice}</div>
+        ) : null}
+        <div className="value-main">{product.wholesale}</div>
+      </div>,
     );
   }
 

@@ -8,6 +8,8 @@ export type CatalogProductRow = {
   name: string;
   sku: string;
   upc: string;
+  description?: string;
+  originalPrice: string;
   wholesale: string;
   wholesaleNote: string;
   releaseDate: string;

@@ -7,6 +7,7 @@ type InflowProduct = {
   sku?: string;
   barcode?: string;
   upc?: string;
+  marketPrice?: string;
   itemType?: string;
   categoryId?: string;
   description?: string;
@@ -125,6 +126,8 @@ export function mapInflowProductToCatalogRow(product: InflowProduct): CatalogPro
     name: product.name?.trim() || "Unnamed product",
     sku: trimmedSku || "N/A",
     upc: buildBarcode(product),
+    description: typeof product.description === "string" ? product.description : undefined,
+    originalPrice: formatMoney(product.marketPrice),
     wholesale: formatMoney(product.defaultPrice?.unitPrice),
     wholesaleNote: "",
     releaseDate: formatDate(product.lastModifiedDateTime),
@@ -136,6 +139,7 @@ export function mapInflowProductToCatalogRow(product: InflowProduct): CatalogPro
 export function fallbackCatalogProducts() {
   return catalogProducts.map((product) => ({
     ...product,
+    originalPrice: "N/A",
     productPath: product.sku ? `/catalog/${product.sku}` : undefined,
   })) satisfies readonly CatalogProductRow[];
 }

@@ -1,4 +1,10 @@
 export type InflowProduct = {
+  prices?: Array<{
+    pricingSchemeId?: string;
+    productPriceId?: string;
+    priceType?: string;
+    unitPrice?: string | null;
+  }>;
   productId?: string;
   id?: string;
   entityId?: string;
@@ -40,3 +46,12 @@ export type InflowProduct = {
 };
 
 export type InflowProductListResponse = InflowProduct[];
+
+export type InflowPricingScheme = {
+  pricingSchemeId?: string;
+  name?: string;
+  isActive?: boolean;
+  isDefault?: boolean;
+};
+
+export type InflowPricingSchemeListResponse = InflowPricingScheme[];

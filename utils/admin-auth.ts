@@ -29,11 +29,11 @@ export async function requireAdminUser() {
   const user = await getCurrentUser();
 
   if (!user?.email) {
-    redirect("/admin/login");
+    redirect("/login");
   }
 
   if (!isAdminEmail(user.email)) {
-    redirect("/admin/login?error=not-authorized");
+    redirect("/login");
   }
 
   return user;

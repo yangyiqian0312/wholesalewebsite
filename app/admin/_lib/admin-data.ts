@@ -48,6 +48,16 @@ export type AdminListing = {
   totalQuantityOnHand: string;
   isActive: boolean;
   lastModifiedDateTime?: string | null;
+  marketPrice?: string;
+  description?: string;
+  imageSmallUrl?: string;
+  defaultImage?: {
+    mediumUrl?: string;
+    smallUrl?: string;
+    thumbUrl?: string;
+    largeUrl?: string;
+    originalUrl?: string;
+  };
   defaultPrice?: {
     unitPrice?: string;
   };
@@ -88,10 +98,11 @@ type AdminListingsResponse = {
     totalItems: number;
     totalPages: number;
   };
-  summary: {
+  summary?: {
     totalListings: number;
     activeListings: number;
     outOfStockListings: number;
+    latestSyncedAt?: string | null;
   };
 };
 
@@ -119,15 +130,18 @@ export async function fetchAdminListings({
   smart,
   listingStatus,
   page,
+  pageSize,
 }: {
   smart?: string;
   listingStatus?: "active" | "oos";
   page?: number;
+  pageSize?: number;
 } = {}) {
+  const resolvedPageSize = [20, 50, 100].includes(pageSize ?? 20) ? (pageSize ?? 20) : 20;
   const query = new URLSearchParams({
     inStockOnly: "false",
     page: String(page ?? 1),
-    pageSize: "24",
+    pageSize: String(resolvedPageSize),
   });
 
   if (smart?.trim()) {
@@ -150,7 +164,16 @@ export async function fetchAdminListings({
   }
 
   const payload = (await response.json()) as AdminListingsResponse;
-  return payload;
+
+  return {
+    ...payload,
+    summary: payload.summary ?? {
+      totalListings: payload.pagination?.totalItems ?? payload.items.length,
+      activeListings: payload.items.filter((item) => item.isActive).length,
+      outOfStockListings: payload.items.filter((item) => Number(item.totalQuantityOnHand) <= 0).length,
+      latestSyncedAt: null,
+    },
+  };
 }
 
 export async function fetchAdminOrders() {

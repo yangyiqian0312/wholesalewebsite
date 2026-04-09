@@ -16,6 +16,7 @@ type FetchCatalogProductsParams = {
 };
 
 type RawCatalogProductPayload = {
+  description?: string;
   imageSmallUrl?: string;
   defaultImage?: {
     mediumUrl?: string;
@@ -34,6 +35,7 @@ function extractCatalogPayloadFields(rawPayload: unknown): RawCatalogProductPayl
   const payload = rawPayload as RawCatalogProductPayload;
 
   return {
+    description: typeof payload.description === "string" ? payload.description : undefined,
     imageSmallUrl: payload.imageSmallUrl,
     defaultImage: payload.defaultImage
       ? {
@@ -122,7 +124,7 @@ export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProdu
     listingStatus: undefined,
   });
 
-  const [totalItems, products, totalListings, activeListings, outOfStockListings] = await Promise.all([
+  const [totalItems, products, totalListings, activeListings, outOfStockListings, latestSync] = await Promise.all([
     prisma.catalogProduct.count({ where }),
     prisma.catalogProduct.findMany({
       where,
@@ -143,6 +145,12 @@ export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProdu
         totalQuantityOnHand: { lte: 0 },
       },
     }),
+    prisma.catalogProduct.aggregate({
+      where: summaryWhere,
+      _max: {
+        updatedAt: true,
+      },
+    }),
   ]);
 
   const items = products.map((product) => ({
@@ -153,6 +161,7 @@ export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProdu
     sku: product.sku,
     barcode: product.barcode,
     upc: product.upc,
+    marketPrice: product.marketPrice?.toString() ?? undefined,
     totalQuantityOnHand: String(product.totalQuantityOnHand),
     isActive: product.isActive,
     lastModifiedDateTime: product.releaseDate,
@@ -173,6 +182,7 @@ export async function fetchCatalogProductsFromDatabase(params: FetchCatalogProdu
       totalListings,
       activeListings,
       outOfStockListings,
+      latestSyncedAt: latestSync._max.updatedAt?.toISOString() ?? null,
     },
   };
 }
@@ -227,6 +237,37 @@ export async function fetchCatalogProductFromDatabase(productId: string) {
     sku: product.sku,
     barcode: product.barcode,
     upc: product.upc,
+    marketPrice: product.marketPrice?.toString() ?? undefined,
+    totalQuantityOnHand: String(product.totalQuantityOnHand),
+    isActive: product.isActive,
+    lastModifiedDateTime: product.releaseDate,
+    defaultPrice: {
+      unitPrice: product.unitPrice?.toString() ?? undefined,
+    },
+    rawPayload: product.rawPayload,
+  };
+}
+
+export async function fetchCatalogProductByInflowIdFromDatabase(productId: string) {
+  const product = await prisma.catalogProduct.findUnique({
+    where: {
+      inflowProductId: productId,
+    },
+  });
+
+  if (!product) {
+    return null;
+  }
+
+  return {
+    ...extractCatalogPayloadFields(product.rawPayload),
+    productId: product.inflowProductId,
+    entityId: product.inflowEntityId,
+    name: product.name,
+    sku: product.sku,
+    barcode: product.barcode,
+    upc: product.upc,
+    marketPrice: product.marketPrice?.toString() ?? undefined,
     totalQuantityOnHand: String(product.totalQuantityOnHand),
     isActive: product.isActive,
     lastModifiedDateTime: product.releaseDate,
@@ -241,11 +282,32 @@ export async function updateCatalogProductInDatabase(
   productId: string,
   input: UpdateCatalogProductInput,
 ) {
+  const existingProduct = await prisma.catalogProduct.findUnique({
+    where: {
+      inflowProductId: productId,
+    },
+    select: {
+      rawPayload: true,
+    },
+  });
+
   const product = await prisma.catalogProduct.update({
     where: {
       inflowProductId: productId,
     },
     data: {
+      ...(input.description !== undefined
+        ? {
+            rawPayload: {
+              ...(existingProduct?.rawPayload &&
+              typeof existingProduct.rawPayload === "object" &&
+              !Array.isArray(existingProduct.rawPayload)
+                ? (existingProduct.rawPayload as Record<string, unknown>)
+                : {}),
+              description: input.description || null,
+            },
+          }
+        : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.unitPrice !== undefined ? { unitPrice: input.unitPrice } : {}),
       ...(input.releaseDate !== undefined ? { releaseDate: input.releaseDate || null } : {}),
@@ -261,6 +323,7 @@ export async function updateCatalogProductInDatabase(
     sku: product.sku,
     barcode: product.barcode,
     upc: product.upc,
+    marketPrice: product.marketPrice?.toString() ?? undefined,
     totalQuantityOnHand: String(product.totalQuantityOnHand),
     isActive: product.isActive,
     lastModifiedDateTime: product.releaseDate,

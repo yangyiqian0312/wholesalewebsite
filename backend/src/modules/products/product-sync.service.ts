@@ -1,10 +1,16 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
+import { inflowRequest } from "../../integrations/inflow/client.js";
 import { fetchProducts } from "./product.service.js";
-import type { InflowProduct } from "./product.types.js";
+import type {
+  InflowPricingScheme,
+  InflowPricingSchemeListResponse,
+  InflowProduct,
+} from "./product.types.js";
 
-const SYNC_INCLUDE = "defaultPrice,productBarcodes,inventoryLines.location,defaultImage";
+const SYNC_INCLUDE = "defaultPrice,prices,productBarcodes,inventoryLines.location,defaultImage";
 const PRIMARY_CATALOG_LOCATION = "152 Main";
+const PRICING_SCHEME_PAGE_SIZE = 100;
 
 function getInflowProductId(product: InflowProduct) {
   return product.productId ?? product.id ?? product.entityId ?? null;
@@ -26,6 +32,61 @@ function parsePrice(value?: string) {
 
   const parsed = Number(value);
   return Number.isNaN(parsed) ? null : parsed.toFixed(2);
+}
+
+function normalizePricingSchemeName(value?: string) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+async function fetchPricingSchemes() {
+  const schemes: InflowPricingScheme[] = [];
+  let skip = 0;
+
+  while (true) {
+    const page = await inflowRequest<InflowPricingSchemeListResponse>("/pricing-schemes", {
+      count: PRICING_SCHEME_PAGE_SIZE,
+      skip,
+    });
+
+    if (!Array.isArray(page) || page.length === 0) {
+      break;
+    }
+
+    schemes.push(...page);
+
+    if (page.length < PRICING_SCHEME_PAGE_SIZE) {
+      break;
+    }
+
+    skip += PRICING_SCHEME_PAGE_SIZE;
+  }
+
+  return schemes;
+}
+
+function buildPricingSchemeMap(pricingSchemes: InflowPricingScheme[]) {
+  return new Map(
+    pricingSchemes
+      .filter((scheme): scheme is InflowPricingScheme & { pricingSchemeId: string } =>
+        Boolean(scheme.pricingSchemeId),
+      )
+      .map((scheme) => [scheme.pricingSchemeId, normalizePricingSchemeName(scheme.name)]),
+  );
+}
+
+function getPriceForScheme(
+  product: InflowProduct,
+  pricingSchemeNamesById: Map<string, string>,
+  schemeName: string,
+) {
+  const normalizedTargetName = normalizePricingSchemeName(schemeName);
+  const matchingPrice = product.prices?.find(
+    (price) =>
+      price.pricingSchemeId &&
+      pricingSchemeNamesById.get(price.pricingSchemeId) === normalizedTargetName,
+  );
+
+  return parsePrice(matchingPrice?.unitPrice ?? undefined);
 }
 
 function getProductBarcode(product: InflowProduct) {
@@ -53,7 +114,10 @@ function getPrimaryLocationQuantity(product: InflowProduct) {
   return matchingLines.reduce((total, line) => total + parseQuantity(line.quantityOnHand), 0);
 }
 
-function mapProductForWrite(product: InflowProduct) {
+function mapProductForWrite(
+  product: InflowProduct,
+  pricingSchemeNamesById: Map<string, string>,
+) {
   const inflowProductId = getInflowProductId(product);
 
   if (!inflowProductId) {
@@ -67,7 +131,8 @@ function mapProductForWrite(product: InflowProduct) {
     sku: product.sku ?? null,
     barcode: getProductBarcode(product),
     upc: product.upc ?? null,
-    unitPrice: parsePrice(product.defaultPrice?.unitPrice),
+    unitPrice: null,
+    marketPrice: getPriceForScheme(product, pricingSchemeNamesById, "Market"),
     totalQuantityOnHand: getPrimaryLocationQuantity(product),
     isActive: product.isActive ?? true,
     releaseDate:
@@ -79,16 +144,20 @@ function mapProductForWrite(product: InflowProduct) {
 }
 
 export async function syncInflowProductsToDatabase() {
-  const inflowProducts = await fetchProducts({
-    include: SYNC_INCLUDE,
-    inStockOnly: false,
-  });
+  const [inflowProducts, pricingSchemes] = await Promise.all([
+    fetchProducts({
+      include: SYNC_INCLUDE,
+      inStockOnly: false,
+    }),
+    fetchPricingSchemes(),
+  ]);
+  const pricingSchemeNamesById = buildPricingSchemeMap(pricingSchemes);
 
   let syncedCount = 0;
   let skippedCount = 0;
 
   for (const product of inflowProducts) {
-    const mappedProduct = mapProductForWrite(product);
+    const mappedProduct = mapProductForWrite(product, pricingSchemeNamesById);
 
     if (!mappedProduct) {
       skippedCount += 1;
@@ -106,7 +175,7 @@ export async function syncInflowProductsToDatabase() {
         sku: mappedProduct.sku,
         barcode: mappedProduct.barcode,
         upc: mappedProduct.upc,
-        unitPrice: mappedProduct.unitPrice,
+        marketPrice: mappedProduct.marketPrice,
         totalQuantityOnHand: mappedProduct.totalQuantityOnHand,
         releaseDate: mappedProduct.releaseDate,
         rawPayload: mappedProduct.rawPayload,

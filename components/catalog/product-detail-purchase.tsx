@@ -72,29 +72,29 @@ export function ProductDetailPurchase({
   function renderControls(isFloating: boolean) {
     return (
       <div className={isFloating ? "product-detail-actions-bar is-floating" : "product-detail-actions"}>
-        <div className="product-detail-qty">
-          <span>Quantity</span>
-          <div className="product-detail-cart-control">
-            <input
-              className="product-detail-qty-input"
-              inputMode="numeric"
-              min="1"
-              onChange={(event) => setQuantity(event.target.value)}
-              type="number"
-              value={quantity}
-            />
-            <button
-              className="primary-button product-detail-button"
-              onClick={handleAddToCart}
-              type="button"
-            >
-              Add to Cart
-            </button>
-          </div>
+        <div className="product-detail-purchase-head">
+          <span className="product-detail-purchase-label">Quantity</span>
+          <small className="cart-feedback product-detail-feedback">
+            {feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")}
+          </small>
         </div>
-        <small className="cart-feedback product-detail-feedback">
-          {feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")}
-        </small>
+        <div className="product-detail-cart-control">
+          <input
+            className="product-detail-qty-input"
+            inputMode="numeric"
+            min="1"
+            onChange={(event) => setQuantity(event.target.value)}
+            type="number"
+            value={quantity}
+          />
+          <button
+            className="primary-button product-detail-button"
+            onClick={handleAddToCart}
+            type="button"
+          >
+            Add to Cart
+          </button>
+        </div>
       </div>
     );
   }
