@@ -9,16 +9,6 @@ export default async function AdminOrdersPage() {
 
   return (
     <div className="admin-layout">
-      <section className="admin-hero panel">
-        <div>
-          <p className="admin-hero-kicker">Orders</p>
-          <h1>Submitted wholesale orders</h1>
-          <p className="admin-hero-copy">
-            Review every order submitted through the storefront, along with customer and line-item details.
-          </p>
-        </div>
-      </section>
-
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">
           <span>Total Orders</span>

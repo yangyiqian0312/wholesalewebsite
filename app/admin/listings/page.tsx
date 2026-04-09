@@ -336,7 +336,7 @@ export default async function AdminListingsPage({
                   />
                 </label>
 
-                <div className="admin-listing-static-field admin-listing-market-price-field">
+                <div className="admin-listing-inline-value-field admin-listing-market-price-field">
                   <span>Market Price</span>
                   <strong>{formatPriceLabel(listing.marketPrice)}</strong>
                 </div>

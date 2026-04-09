@@ -1201,12 +1201,26 @@ select {
 }
 
 .admin-listing-input-field span,
+.admin-listing-inline-value-field span,
 .admin-listing-static-field span,
 .admin-listing-description-header span {
   color: rgba(25, 58, 108, 0.8);
   font-size: 12px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.admin-listing-inline-value-field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.admin-listing-inline-value-field strong {
+  color: var(--primary-dark);
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 700;
 }
 
 .admin-listing-static-field {

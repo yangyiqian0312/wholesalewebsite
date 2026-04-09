@@ -224,16 +224,6 @@ export default async function AdminApplicationsPage({
 
   return (
     <div className="admin-layout">
-      <section className="admin-hero panel">
-        <div>
-          <p className="admin-hero-kicker">Applications</p>
-          <h1>Review incoming wholesale applications</h1>
-          <p className="admin-hero-copy">
-            Approve applicants who should receive wholesale access, or deny them with a clear
-            reason the sales team can reference later.
-          </p>
-        </div>
-      </section>
 
       {error === "missing-deny-reason" ? (
         <section className="panel status-banner status-banner-error">

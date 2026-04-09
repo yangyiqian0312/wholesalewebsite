@@ -18,15 +18,6 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="admin-layout">
-      <section className="admin-hero panel">
-        <div>
-          <p className="admin-hero-kicker">Users</p>
-          <h1>Approved wholesale users</h1>
-          <p className="admin-hero-copy">
-            This view only shows approved accounts that are active in the wholesale system.
-          </p>
-        </div>
-      </section>
 
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">
