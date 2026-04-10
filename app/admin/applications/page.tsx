@@ -204,6 +204,9 @@ export default async function AdminApplicationsPage({
   const message = Array.isArray(resolvedSearchParams.message)
     ? resolvedSearchParams.message[0]
     : resolvedSearchParams.message;
+  const status = Array.isArray(resolvedSearchParams.status)
+    ? resolvedSearchParams.status[0]
+    : resolvedSearchParams.status;
   const requestedTab = Array.isArray(resolvedSearchParams.tab)
     ? resolvedSearchParams.tab[0]
     : resolvedSearchParams.tab;
@@ -224,6 +227,19 @@ export default async function AdminApplicationsPage({
 
   return (
     <div className="admin-layout">
+      {status === "approved" ? (
+        <section className="panel status-banner status-banner-success">
+          <strong>Application approved.</strong>
+          <span>The application has been approved successfully.</span>
+        </section>
+      ) : null}
+
+      {status === "denied" ? (
+        <section className="panel status-banner status-banner-success">
+          <strong>Application denied.</strong>
+          <span>The applicant has been marked as denied.</span>
+        </section>
+      ) : null}
 
       {error === "missing-deny-reason" ? (
         <section className="panel status-banner status-banner-error">
@@ -232,10 +248,12 @@ export default async function AdminApplicationsPage({
         </section>
       ) : null}
 
-      {error === "review-failed" ? (
+      {error === "review-failed" || error === "approve-failed" || error === "deny-failed" ? (
         <section className="panel status-banner status-banner-error">
           <strong>Review action failed.</strong>
-          <span>Please try the action again. If it keeps failing, we should inspect the backend.</span>
+          <span>
+            {message || "Please try the action again. If it keeps failing, we should inspect the backend."}
+          </span>
         </section>
       ) : null}
 

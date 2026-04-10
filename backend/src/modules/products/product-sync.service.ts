@@ -117,12 +117,21 @@ function getPrimaryLocationQuantity(product: InflowProduct) {
 function mapProductForWrite(
   product: InflowProduct,
   pricingSchemeNamesById: Map<string, string>,
+  existingRawPayload?: Prisma.JsonValue,
 ) {
   const inflowProductId = getInflowProductId(product);
 
   if (!inflowProductId) {
     return null;
   }
+
+  const existingDescription =
+    existingRawPayload &&
+    typeof existingRawPayload === "object" &&
+    !Array.isArray(existingRawPayload) &&
+    typeof (existingRawPayload as { description?: unknown }).description === "string"
+      ? (existingRawPayload as { description: string }).description
+      : undefined;
 
   return {
     inflowProductId,
@@ -134,10 +143,13 @@ function mapProductForWrite(
     unitPrice: null,
     marketPrice: getPriceForScheme(product, pricingSchemeNamesById, "Market"),
     totalQuantityOnHand: getPrimaryLocationQuantity(product),
-    isActive: product.isActive ?? true,
+    isActive: false,
     releaseDate:
       typeof product.lastModifiedDateTime === "string" ? product.lastModifiedDateTime : null,
-    rawPayload: product as Prisma.InputJsonValue,
+    rawPayload: {
+      ...(product as Prisma.InputJsonValue as Record<string, unknown>),
+      ...(existingDescription !== undefined ? { description: existingDescription } : {}),
+    } as Prisma.InputJsonValue,
     lastSeenAt: new Date(),
     syncedAt: new Date(),
   };
@@ -157,7 +169,27 @@ export async function syncInflowProductsToDatabase() {
   let skippedCount = 0;
 
   for (const product of inflowProducts) {
-    const mappedProduct = mapProductForWrite(product, pricingSchemeNamesById);
+    const inflowProductId = getInflowProductId(product);
+
+    if (!inflowProductId) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const existingProduct = await prisma.catalogProduct.findUnique({
+      where: {
+        inflowProductId,
+      },
+      select: {
+        rawPayload: true,
+      },
+    });
+
+    const mappedProduct = mapProductForWrite(
+      product,
+      pricingSchemeNamesById,
+      existingProduct?.rawPayload,
+    );
 
     if (!mappedProduct) {
       skippedCount += 1;

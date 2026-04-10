@@ -24,7 +24,7 @@ export async function approveApplicationAction(formData: FormData) {
   }
 
   const response = await fetch(
-    `${getBackendBaseUrl()}/api/admin/account-applications/${applicationId}/review`,
+    `${getBackendBaseUrl()}/api/admin/account-applications/${applicationId}`,
     {
       method: "PATCH",
       headers: {
@@ -75,7 +75,7 @@ export async function denyApplicationAction(formData: FormData) {
   }
 
   const response = await fetch(
-    `${getBackendBaseUrl()}/api/admin/account-applications/${applicationId}/review`,
+    `${getBackendBaseUrl()}/api/admin/account-applications/${applicationId}`,
     {
       method: "PATCH",
       headers: {

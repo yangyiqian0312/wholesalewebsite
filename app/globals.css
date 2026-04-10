@@ -946,6 +946,36 @@ select {
   transform: translateY(-1px);
 }
 
+.admin-listings-sync-group {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.admin-listings-pagination-start {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.admin-listings-sync-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgba(23, 56, 112, 0.14);
+  border-radius: 999px;
+  background: rgba(248, 250, 255, 0.96);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-listings-sync-button:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
 .admin-listings-clear {
   align-self: center;
   justify-self: start;
@@ -3531,6 +3561,16 @@ select {
 
   .admin-listings-summary-tabs {
     width: 100%;
+  }
+
+  .admin-listings-sync-group {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .admin-listings-pagination-start {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .admin-listings-toolbar-actions {

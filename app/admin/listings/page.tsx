@@ -1,6 +1,7 @@
 import ListingsBulkControls from "../../../components/admin/listings-bulk-controls";
 import ListingDescriptionEditor from "../../../components/admin/listing-description-editor";
 import ListingSaveButton from "../../../components/admin/listing-save-button";
+import ListingsSyncButton from "../../../components/admin/listings-sync-button";
 import ListingsPageSizeSelect from "../../../components/admin/listings-page-size-select";
 import { fetchAdminListings } from "../_lib/admin-data";
 import { updateListingAction } from "../_lib/listing-actions";
@@ -383,8 +384,11 @@ export default async function AdminListingsPage({
 
       <section className="panel table-panel">
         <div className="pagination">
-          <div className="results-meta">
-            {visibleStart}-{visibleEnd} of {listingsResponse.pagination.totalItems} items
+          <div className="admin-listings-pagination-start">
+            <div className="results-meta">
+              {visibleStart}-{visibleEnd} of {listingsResponse.pagination.totalItems} items
+            </div>
+            <ListingsSyncButton />
           </div>
           <div className="admin-listings-pagination-tools">
             <form action="/admin/listings" className="admin-listings-page-size-form" method="get">
