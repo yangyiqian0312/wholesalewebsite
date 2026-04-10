@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
-import { approveOrderAction } from "../../_lib/order-actions";
+import { approveOrderAction, cancelOrderAction } from "../../_lib/order-actions";
 import { OrderApprovalEditor } from "../../../../components/admin/order-approval-editor";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
@@ -69,10 +69,16 @@ export default async function AdminOrderDetailPage({
       ? resolvedSearchParams.message
         ? `Order approved. ${resolvedSearchParams.message}`
         : "Order approved."
+      : resolvedSearchParams.status === "cancelled"
+        ? "Order cancelled."
       : resolvedSearchParams.error === "approve-failed"
         ? resolvedSearchParams.message || "Order approval failed."
+        : resolvedSearchParams.error === "cancel-failed"
+          ? resolvedSearchParams.message || "Order cancellation failed."
         : null;
-  const isApproved = order.status === "APPROVED";
+  const isApproved = order.status !== "SUBMITTED";
+  const isCancelled = order.status === "CANCELLED";
+  const canCancelOrder = !isCancelled && (order.status === "SUBMITTED" || order.status === "APPROVED" || order.status === "PAID");
 
   return (
     <div className="admin-layout">
@@ -115,6 +121,12 @@ export default async function AdminOrderDetailPage({
       </section>
 
       {feedbackMessage ? <p className="admin-inline-message">{feedbackMessage}</p> : null}
+      {order.customerCancelRequestedAt ? (
+        <p className="admin-inline-message">
+          Customer requested cancellation on {formatAdminDate(order.customerCancelRequestedAt)}
+          {order.customerCancelRequestedByEmail ? ` by ${order.customerCancelRequestedByEmail}` : ""}.
+        </p>
+      ) : null}
 
       <section className="panel admin-application-card">
         <div className="table-panel-header">
@@ -134,13 +146,34 @@ export default async function AdminOrderDetailPage({
           <DetailBlock label="Approved At" value={order.approvedAt ? formatAdminDate(order.approvedAt) : "Not approved yet"} />
           <DetailBlock label="Inflow Order Number" value={order.inflowOrderNumber || "Not created yet"} />
           <DetailBlock label="Inflow Sales Order ID" value={order.inflowSalesOrderId || "Not created yet"} />
+          <DetailBlock label="Cancelled At" value={order.cancelledAt ? formatAdminDate(order.cancelledAt) : "Active"} />
+          <DetailBlock label="Cancelled By" value={order.cancelledByEmail || "Not cancelled"} />
           <DetailBlock label="Application ID" value={order.applicationId} />
         </div>
       </section>
 
+      {canCancelOrder ? (
+        <form action={cancelOrderAction} className="panel admin-application-card">
+          <input name="orderId" type="hidden" value={order.id} />
+          <div className="table-panel-header">
+            <div>
+              <h2>Cancellation</h2>
+              <p className="panel-subtitle">
+                {order.customerCancelRequestedAt
+                  ? "Customer requested cancellation. Sales can confirm the cancellation here."
+                  : "Cancel this order from the admin portal and sync the cancellation to Inflow when a sales order exists."}
+              </p>
+            </div>
+            <button className="text-button text-button-danger" type="submit">
+              Cancel Order
+            </button>
+          </div>
+        </form>
+      ) : null}
+
       <OrderApprovalEditor
         action={approveOrderAction}
-        disabled={isApproved}
+        disabled={isApproved || isCancelled}
         freightAmount={order.freightAmount}
         initialAdjustments={order.adjustments.map((adjustment) => ({
           id: adjustment.id,

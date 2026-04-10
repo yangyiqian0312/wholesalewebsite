@@ -137,6 +137,10 @@ model WholesaleOrder {
   taxRate              Decimal?           @db.Decimal(5, 2)
   taxAmount            Decimal            @default(0) @db.Decimal(12, 2)
   salesRepNote          String?
+  customerCancelRequestedAt DateTime?
+  customerCancelRequestedByEmail String?
+  cancelledAt           DateTime?
+  cancelledByEmail      String?
   submittedAt           DateTime           @default(now())
   lines                 WholesaleOrderLine[]
   adjustments           WholesaleOrderAdjustment[]

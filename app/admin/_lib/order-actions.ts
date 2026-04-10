@@ -96,3 +96,41 @@ export async function approveOrderAction(formData: FormData) {
 
   redirect(`/admin/orders/${orderId}?status=approved`);
 }
+
+export async function cancelOrderAction(formData: FormData) {
+  "use server";
+
+  const user = await requireAdminPortalUser();
+  const orderId = String(formData.get("orderId") ?? "").trim();
+
+  if (!orderId) {
+    redirect("/admin/orders?error=missing-order");
+  }
+
+  const response = await fetch(`${getBackendBaseUrl()}/api/admin/orders/${orderId}/cancel`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "x-admin-token": getAdminApiToken(),
+    },
+    cache: "no-store",
+    body: JSON.stringify({
+      cancelledByEmail: user.email,
+    }),
+  });
+
+  const payload = response.ok ? await response.json().catch(() => null) : await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const message = getErrorMessage(payload);
+    const suffix = message ? `&message=${encodeURIComponent(message)}` : "";
+    redirect(`/admin/orders/${orderId}?error=cancel-failed${suffix}`);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/profile/orders");
+
+  redirect(`/admin/orders/${orderId}?status=cancelled`);
+}

@@ -52,6 +52,7 @@ type InflowCustomerApplication = {
   stateProvince: string;
   zipPostalCode: string;
   country: string;
+  physicalStoreAddress?: string | null;
 };
 
 type WholesaleOrderStatus = "SUBMITTED" | "APPROVED" | "PAID" | "CANCELLED";
@@ -103,12 +104,48 @@ type WholesaleOrderRecord = {
   taxRate: string | null;
   taxAmount: string;
   salesRepNote: string | null;
+  customerCancelRequestedAt: Date | null;
+  customerCancelRequestedByEmail: string | null;
+  cancelledAt: Date | null;
+  cancelledByEmail: string | null;
   submittedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   lines: WholesaleOrderLineRecord[];
   adjustments: WholesaleOrderAdjustmentRecord[];
 };
+
+type WholesaleOrderApprovalApplication = InflowCustomerApplication & {
+  assignedSalesRepEmail: string | null;
+};
+
+type WholesaleOrderApprovalRecord = WholesaleOrderRecord & {
+  application: WholesaleOrderApprovalApplication;
+};
+
+type InflowSalesOrder = {
+  salesOrderId: string;
+  orderNumber?: string;
+  isCancelled?: boolean;
+};
+
+function buildWholesaleOrderInclude() {
+  return {
+    adjustments: {
+      orderBy: [{ createdAt: "asc" as const }],
+    },
+    lines: {
+      orderBy: [{ createdAt: "asc" as const }],
+    },
+  };
+}
+
+function buildWholesaleOrderApprovalInclude() {
+  return {
+    ...buildWholesaleOrderInclude(),
+    application: true,
+  };
+}
 
 type PersistedWholesaleOrderLine = {
   id: string;
@@ -243,7 +280,15 @@ function buildInflowCustomerName(application: InflowCustomerApplication) {
   return businessName || contactName;
 }
 
-function buildInflowAddress(application: InflowCustomerApplication) {
+type InflowAddress = {
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
+function buildCompanyBillingAddress(application: InflowCustomerApplication): InflowAddress {
   return {
     address: application.companyAddress,
     city: application.city,
@@ -251,6 +296,61 @@ function buildInflowAddress(application: InflowCustomerApplication) {
     postalCode: application.zipPostalCode,
     country: application.country,
   };
+}
+
+function parsePhysicalStoreAddress(value?: string | null) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const lines = trimmedValue
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    return null;
+  }
+
+  const addressee = lines[0] ?? "";
+  const streetAddress = lines[1] ?? "";
+  const cityStateLine = lines[2] ?? "";
+  const postalCode = lines[3] ?? "";
+  const country = lines[4] ?? "";
+  const cityStateMatch = cityStateLine.match(/^(.*?)(?:,\s*([A-Za-z .'-]+))?$/);
+
+  return {
+    addressee,
+    address: streetAddress,
+    city: cityStateMatch?.[1]?.trim() ?? "",
+    state: cityStateMatch?.[2]?.trim() ?? "",
+    postalCode,
+    country,
+  };
+}
+
+function buildShippingAddress(application: InflowCustomerApplication): InflowAddress {
+  const parsedShippingAddress = parsePhysicalStoreAddress(application.physicalStoreAddress);
+
+  if (
+    parsedShippingAddress?.address &&
+    parsedShippingAddress.city &&
+    parsedShippingAddress.state &&
+    parsedShippingAddress.postalCode &&
+    parsedShippingAddress.country
+  ) {
+    return {
+      address: parsedShippingAddress.address,
+      city: parsedShippingAddress.city,
+      state: parsedShippingAddress.state,
+      postalCode: parsedShippingAddress.postalCode,
+      country: parsedShippingAddress.country,
+    };
+  }
+
+  return buildCompanyBillingAddress(application);
 }
 
 async function upsertInflowCustomer(
@@ -268,7 +368,7 @@ async function upsertInflowCustomer(
     contactName: application.contactName,
     email: application.email,
     phone: application.phone,
-    ...buildInflowAddress(application),
+    ...buildCompanyBillingAddress(application),
   };
 
   let customer: InflowCustomer;
@@ -311,6 +411,42 @@ async function upsertInflowCustomer(
   return {
     customerId: customer.customerId,
   };
+}
+
+async function fetchInflowSalesOrderById(salesOrderId: string) {
+  return inflowRequest<InflowSalesOrder>(`/sales-orders/${salesOrderId}`);
+}
+
+async function syncCancelledStatusFromInflow(order: WholesaleOrderRecord | null) {
+  if (!order?.inflowSalesOrderId || order.status === "CANCELLED") {
+    return order;
+  }
+
+  try {
+    const inflowSalesOrder = await fetchInflowSalesOrderById(order.inflowSalesOrderId);
+
+    if (!inflowSalesOrder.isCancelled) {
+      return order;
+    }
+
+    const cancelledOrder = await prisma.wholesaleOrder.update({
+      where: {
+        id: order.id,
+      },
+      data: {
+        status: "CANCELLED",
+        customerCancelRequestedAt: null,
+        customerCancelRequestedByEmail: null,
+        cancelledAt: order.cancelledAt ?? new Date(),
+        cancelledByEmail: order.cancelledByEmail ?? null,
+      },
+      include: buildWholesaleOrderInclude(),
+    });
+
+    return cancelledOrder as unknown as WholesaleOrderRecord;
+  } catch {
+    return order;
+  }
 }
 
 async function createLocalWholesaleOrder(
@@ -368,6 +504,10 @@ async function createLocalWholesaleOrder(
       taxRate: null,
       taxAmount: "0.00",
       salesRepNote: null,
+      customerCancelRequestedAt: null,
+      customerCancelRequestedByEmail: null,
+      cancelledAt: null,
+      cancelledByEmail: null,
       submittedAt: new Date(),
       lines: {
         create: normalizedItems.map((item) => ({
@@ -390,14 +530,7 @@ async function createLocalWholesaleOrder(
         })),
       },
     } as never,
-    include: {
-      adjustments: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-      lines: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-    },
+    include: buildWholesaleOrderInclude(),
   });
 
   return createdOrder as unknown as WholesaleOrderRecord;
@@ -424,18 +557,18 @@ export async function fetchWholesaleOrdersByFilter(filters?: {
           }
         : {}),
     },
-    include: {
-      adjustments: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-      lines: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-    },
+    include: buildWholesaleOrderInclude(),
     orderBy: [{ submittedAt: "desc" }],
   });
 
-  return orders as unknown as WholesaleOrderRecord[];
+  const typedOrders = orders as unknown as WholesaleOrderRecord[];
+
+  if (!filters?.customerEmail && !filters?.applicationId) {
+    return typedOrders;
+  }
+
+  const syncedOrders = await Promise.all(typedOrders.map((order) => syncCancelledStatusFromInflow(order)));
+  return syncedOrders.filter((order): order is WholesaleOrderRecord => Boolean(order));
 }
 
 export async function fetchWholesaleOrderById(orderId: string) {
@@ -443,17 +576,10 @@ export async function fetchWholesaleOrderById(orderId: string) {
     where: {
       id: orderId,
     },
-    include: {
-      adjustments: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-      lines: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-    },
+    include: buildWholesaleOrderInclude(),
   });
 
-  return (order as unknown as WholesaleOrderRecord | null) ?? null;
+  return syncCancelledStatusFromInflow((order as unknown as WholesaleOrderRecord | null) ?? null);
 }
 
 export async function submitSalesOrderForApprovedCustomer(
@@ -504,22 +630,8 @@ export async function approveWholesaleOrder(
     where: {
       id: orderId,
     },
-    include: {
-      adjustments: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-      lines: {
-        orderBy: [{ createdAt: "asc" }],
-      },
-      application: {
-        include: {
-          documents: {
-            orderBy: [{ createdAt: "asc" }],
-          },
-        },
-      },
-    },
-  });
+    include: buildWholesaleOrderApprovalInclude(),
+  }) as WholesaleOrderApprovalRecord | null;
 
   if (!existingOrder) {
     throw new Error("Order not found");
@@ -598,6 +710,15 @@ export async function approveWholesaleOrder(
   ).toFixed(2);
 
   const inflowCustomer = await upsertInflowCustomer(existingOrder.application);
+  const billingAddress = buildCompanyBillingAddress(existingOrder.application);
+  const shippingAddress = buildShippingAddress(existingOrder.application);
+  const parsedShippingAddress = parsePhysicalStoreAddress(existingOrder.application.physicalStoreAddress);
+  const sameBillingAndShipping =
+    billingAddress.address === shippingAddress.address &&
+    billingAddress.city === shippingAddress.city &&
+    billingAddress.state === shippingAddress.state &&
+    billingAddress.postalCode === shippingAddress.postalCode &&
+    billingAddress.country === shippingAddress.country;
   const salesOrderPayload = {
     salesOrderId: existingOrder.inflowSalesOrderId || randomUUID(),
     customerId: inflowCustomer.customerId,
@@ -606,11 +727,13 @@ export async function approveWholesaleOrder(
     phone: existingOrder.application.phone,
     source: existingOrder.source,
     showShipping: toMoneyNumber(normalizedFreightAmount) > 0,
-    sameBillingAndShipping: true,
+    sameBillingAndShipping,
     shipToCompanyName:
-      existingOrder.application.businessName.trim() || existingOrder.application.contactName.trim(),
-    billingAddress: buildInflowAddress(existingOrder.application),
-    shippingAddress: buildInflowAddress(existingOrder.application),
+      parsedShippingAddress?.addressee ||
+      existingOrder.application.businessName.trim() ||
+      existingOrder.application.contactName.trim(),
+    billingAddress,
+    shippingAddress,
     orderDate: new Date().toISOString(),
     orderFreight: toMoneyNumber(normalizedFreightAmount) > 0 ? normalizedFreightAmount : null,
     orderRemarks: salesRepNote?.trim() || undefined,
@@ -690,6 +813,10 @@ export async function approveWholesaleOrder(
         taxRate: normalizedTaxRate,
         taxAmount,
         salesRepNote: salesRepNote?.trim() || null,
+        customerCancelRequestedAt: null,
+        customerCancelRequestedByEmail: null,
+        cancelledAt: null,
+        cancelledByEmail: null,
         adjustments: {
           create: normalizedAdjustments.map((adjustment) => ({
             label: adjustment.label,
@@ -697,16 +824,150 @@ export async function approveWholesaleOrder(
           })),
         },
       } as never,
-      include: {
-        adjustments: {
-          orderBy: [{ createdAt: "asc" }],
-        },
-        lines: {
-          orderBy: [{ createdAt: "asc" }],
-        },
-      },
+      include: buildWholesaleOrderInclude(),
     });
   });
 
   return updatedOrder as unknown as WholesaleOrderRecord;
+}
+
+export async function requestWholesaleOrderCancellation(orderId: string, customerEmail: string) {
+  const normalizedCustomerEmail = customerEmail.trim().toLowerCase();
+
+  if (!normalizedCustomerEmail) {
+    throw new Error("Customer email is required");
+  }
+
+  const existingOrder = await fetchWholesaleOrderById(orderId);
+
+  if (!existingOrder) {
+    throw new Error("Order not found");
+  }
+
+  if (existingOrder.customerEmail.trim().toLowerCase() !== normalizedCustomerEmail) {
+    throw new Error("You can only manage your own orders");
+  }
+
+  if (existingOrder.status === "CANCELLED") {
+    return {
+      order: existingOrder,
+      action: "cancelled" as const,
+    };
+  }
+
+  if (existingOrder.status === "SUBMITTED") {
+    const cancelledOrder = await prisma.wholesaleOrder.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        status: "CANCELLED",
+        customerCancelRequestedAt: null,
+        customerCancelRequestedByEmail: null,
+        cancelledAt: new Date(),
+        cancelledByEmail: normalizedCustomerEmail,
+      },
+      include: buildWholesaleOrderInclude(),
+    });
+
+    return {
+      order: cancelledOrder as unknown as WholesaleOrderRecord,
+      action: "cancelled" as const,
+    };
+  }
+
+  if (existingOrder.status === "APPROVED" || existingOrder.status === "PAID") {
+    if (existingOrder.customerCancelRequestedAt) {
+      return {
+        order: existingOrder,
+        action: "requested" as const,
+      };
+    }
+
+    const requestedOrder = await prisma.wholesaleOrder.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        customerCancelRequestedAt: new Date(),
+        customerCancelRequestedByEmail: normalizedCustomerEmail,
+      },
+      include: buildWholesaleOrderInclude(),
+    });
+
+    return {
+      order: requestedOrder as unknown as WholesaleOrderRecord,
+      action: "requested" as const,
+    };
+  }
+
+  throw new Error("This order can no longer be cancelled from the customer portal");
+}
+
+export async function cancelWholesaleOrder(orderId: string, reviewerEmail: string) {
+  const normalizedReviewerEmail = reviewerEmail.trim().toLowerCase();
+
+  if (!normalizedReviewerEmail) {
+    throw new Error("Reviewer email is required");
+  }
+
+  const reviewerRole = await resolveAdminPortalRoleByEmail(normalizedReviewerEmail);
+
+  if (!reviewerRole) {
+    throw new Error("Only admin portal users can cancel orders");
+  }
+
+  const existingOrder = await prisma.wholesaleOrder.findUnique({
+    where: {
+      id: orderId,
+    },
+    include: buildWholesaleOrderApprovalInclude(),
+  }) as WholesaleOrderApprovalRecord | null;
+
+  if (!existingOrder) {
+    throw new Error("Order not found");
+  }
+
+  if (
+    reviewerRole === "sales_rep" &&
+    existingOrder.application.assignedSalesRepEmail?.trim().toLowerCase() !== normalizedReviewerEmail
+  ) {
+    throw new Error("You can only cancel orders for your own customers");
+  }
+
+  const syncedOrder = await syncCancelledStatusFromInflow(existingOrder as unknown as WholesaleOrderRecord);
+
+  if (syncedOrder?.status === "CANCELLED") {
+    return syncedOrder;
+  }
+
+  if (existingOrder.inflowSalesOrderId) {
+    await inflowRequest<SubmitOrderResult>(
+      "/sales-orders",
+      {},
+      {
+        method: "PUT",
+        body: {
+          salesOrderId: existingOrder.inflowSalesOrderId,
+          isCancelled: true,
+        },
+      },
+    );
+  }
+
+  const cancelledOrder = await prisma.wholesaleOrder.update({
+    where: {
+      id: orderId,
+    },
+    data: {
+      status: "CANCELLED",
+      customerCancelRequestedAt: null,
+      customerCancelRequestedByEmail: null,
+      cancelledAt: new Date(),
+      cancelledByEmail: normalizedReviewerEmail,
+    },
+    include: buildWholesaleOrderInclude(),
+  });
+
+  return cancelledOrder as unknown as WholesaleOrderRecord;
 }

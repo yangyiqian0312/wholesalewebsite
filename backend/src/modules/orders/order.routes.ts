@@ -4,9 +4,11 @@ import { config } from "../../config.js";
 import { sendApprovedOrderEmail } from "../notifications/email.service.js";
 import {
   approveWholesaleOrder,
+  cancelWholesaleOrder,
   fetchWholesaleOrderById,
   fetchWholesaleOrders,
   fetchWholesaleOrdersByFilter,
+  requestWholesaleOrderCancellation,
   submitSalesOrderForApprovedCustomer,
 } from "./order.service.js";
 
@@ -49,6 +51,14 @@ const approveOrderSchema = z.object({
       amount: z.string().trim().min(1),
     }),
   ).default([]),
+});
+
+const customerCancelOrderSchema = z.object({
+  email: z.string().trim().email(),
+});
+
+const adminCancelOrderSchema = z.object({
+  cancelledByEmail: z.string().trim().email(),
 });
 
 export async function registerOrderRoutes(app: FastifyInstance) {
@@ -244,6 +254,100 @@ export async function registerOrderRoutes(app: FastifyInstance) {
           : message.includes("Only submitted orders") || message.includes("only approve orders")
             ? 409
             : message.includes("payload") || message.includes("required")
+              ? 400
+              : 502;
+
+      return reply.status(statusCode).send({
+        error: message,
+      });
+    }
+  });
+
+  app.patch("/api/orders/:orderId/cancel", async (request, reply) => {
+    if (!isAuthorizedAdminRequest(request)) {
+      return reply.status(401).send({
+        error: "Unauthorized",
+      });
+    }
+
+    const orderId = z.string().trim().min(1).safeParse((request.params as { orderId?: string }).orderId);
+    const parsedBody = customerCancelOrderSchema.safeParse(request.body);
+
+    if (!orderId.success) {
+      return reply.status(400).send({
+        error: "Invalid order id",
+      });
+    }
+
+    if (!parsedBody.success) {
+      return reply.status(400).send({
+        error: "Invalid cancel order payload",
+        details: parsedBody.error.flatten(),
+      });
+    }
+
+    try {
+      const result = await requestWholesaleOrderCancellation(orderId.data, parsedBody.data.email);
+
+      return reply.send(result);
+    } catch (error) {
+      request.log.error(error);
+
+      const message = error instanceof Error ? error.message : "Failed to update order cancellation";
+      const statusCode =
+        message.includes("not found")
+          ? 404
+          : message.includes("your own orders")
+            ? 403
+            : message.includes("no longer be cancelled")
+              ? 409
+              : message.includes("required")
+                ? 400
+                : 502;
+
+      return reply.status(statusCode).send({
+        error: message,
+      });
+    }
+  });
+
+  app.patch("/api/admin/orders/:orderId/cancel", async (request, reply) => {
+    if (!isAuthorizedAdminRequest(request)) {
+      return reply.status(401).send({
+        error: "Unauthorized",
+      });
+    }
+
+    const orderId = z.string().trim().min(1).safeParse((request.params as { orderId?: string }).orderId);
+    const parsedBody = adminCancelOrderSchema.safeParse(request.body);
+
+    if (!orderId.success) {
+      return reply.status(400).send({
+        error: "Invalid order id",
+      });
+    }
+
+    if (!parsedBody.success) {
+      return reply.status(400).send({
+        error: "Invalid cancel order payload",
+        details: parsedBody.error.flatten(),
+      });
+    }
+
+    try {
+      const updatedOrder = await cancelWholesaleOrder(orderId.data, parsedBody.data.cancelledByEmail);
+
+      return reply.send(updatedOrder);
+    } catch (error) {
+      request.log.error(error);
+
+      const message = error instanceof Error ? error.message : "Failed to cancel order";
+      const statusCode =
+        message.includes("not found")
+          ? 404
+          : message.includes("Only admin portal users") || message.includes("You can only cancel orders")
+            ? 403
+            : message.includes("required")
               ? 400
               : 502;
 

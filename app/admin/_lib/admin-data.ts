@@ -112,6 +112,10 @@ export type AdminOrder = {
   taxRate: string | null;
   taxAmount: string;
   salesRepNote: string | null;
+  customerCancelRequestedAt: string | null;
+  customerCancelRequestedByEmail: string | null;
+  cancelledAt: string | null;
+  cancelledByEmail: string | null;
   submittedAt: string;
   createdAt: string;
   updatedAt: string;

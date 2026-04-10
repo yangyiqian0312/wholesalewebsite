@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useTransition } from "react";
+
 export type AccountOrder = {
   id: string;
   status: "SUBMITTED" | "APPROVED" | "PAID" | "SHIPPED" | "CANCELLED";
@@ -13,6 +15,10 @@ export type AccountOrder = {
   taxRate: string | null;
   taxAmount: string;
   submittedAt: string;
+  customerCancelRequestedAt: string | null;
+  customerCancelRequestedByEmail: string | null;
+  cancelledAt: string | null;
+  cancelledByEmail: string | null;
   adjustments: Array<{
     id: string;
     label: string;
@@ -50,6 +56,14 @@ function formatQuantity(quantity: number, uomName: string | null) {
   return `${quantity} ${uomName || "ea."}`;
 }
 
+function canRequestCancellation(order: AccountOrder) {
+  return order.status === "APPROVED" || order.status === "PAID";
+}
+
+function canCancelDirectly(order: AccountOrder) {
+  return order.status === "SUBMITTED";
+}
+
 function hasLineChanged(line: AccountOrder["lines"][number]) {
   return (
     line.quantity !== line.submittedQuantity ||
@@ -57,6 +71,14 @@ function hasLineChanged(line: AccountOrder["lines"][number]) {
     (line.discountPercent || "0") !== (line.submittedDiscountPercent || "0") ||
     line.lineTotal !== line.submittedLineTotal
   );
+}
+
+function shouldShowLineChange(order: AccountOrder, line: AccountOrder["lines"][number]) {
+  if (order.status === "SUBMITTED") {
+    return false;
+  }
+
+  return hasLineChanged(line);
 }
 
 function formatProfileDate(value: string) {
@@ -83,6 +105,44 @@ function getOrderStatusMeta(status: AccountOrder["status"]) {
 }
 
 export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
+  const [currentOrders, setCurrentOrders] = useState(orders);
+  const [feedbackByOrderId, setFeedbackByOrderId] = useState<Record<string, string>>({});
+  const [isPending, startTransition] = useTransition();
+
+  function handleCancel(orderId: string) {
+    startTransition(async () => {
+      const response = await fetch(`/api/orders/${orderId}/cancel`, {
+        method: "PATCH",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            action?: "cancelled" | "requested";
+            order?: AccountOrder;
+          }
+        | null;
+
+      if (!response.ok || !payload?.order) {
+        setFeedbackByOrderId((current) => ({
+          ...current,
+          [orderId]: payload?.error ?? "We could not update this order right now.",
+        }));
+        return;
+      }
+
+      setCurrentOrders((current) =>
+        current.map((order) => (order.id === orderId ? payload.order! : order)),
+      );
+      setFeedbackByOrderId((current) => ({
+        ...current,
+        [orderId]:
+          payload.action === "cancelled"
+            ? "Order cancelled."
+            : "Cancellation request sent to your sales rep.",
+      }));
+    });
+  }
+
   return (
     <section className="panel profile-panel">
       <div className="profile-toolbar">
@@ -96,8 +156,14 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
       </div>
 
       <div className="profile-order-list">
-        {orders.length ? orders.map((order) => {
+        {currentOrders.length ? currentOrders.map((order) => {
           const statusMeta = getOrderStatusMeta(order.status);
+          const feedbackMessage = feedbackByOrderId[order.id];
+          const actionLabel = canCancelDirectly(order)
+            ? "Cancel Order"
+            : canRequestCancellation(order)
+              ? "Request to Cancel"
+              : null;
 
           return (
             <article className="profile-order-card" key={order.id}>
@@ -116,6 +182,13 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                 <span>{order.lines.length} items</span>
               </div>
 
+              {order.customerCancelRequestedAt ? (
+                <div className="profile-order-note profile-order-cancel-note">
+                  <span>Cancellation Requested</span>
+                  <p>Your request has been sent to your sales rep and is waiting for review.</p>
+                </div>
+              ) : null}
+
               <div className="table-scroll profile-order-table-scroll">
                 <table className="catalog-table profile-order-table">
                   <thead>
@@ -128,22 +201,25 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {order.lines.map((line) => (
+                    {order.lines.map((line) => {
+                      const showLineChange = shouldShowLineChange(order, line);
+
+                      return (
                       <tr
-                        className={line.quantity === 0 ? "profile-order-line-removed" : hasLineChanged(line) ? "profile-order-line-changed" : undefined}
+                        className={line.quantity === 0 && showLineChange ? "profile-order-line-removed" : showLineChange ? "profile-order-line-changed" : undefined}
                         key={line.id}
                       >
                         <td>
                           <strong>{line.productName || line.productCode || "Product"}</strong>
                           <span>{line.productCode || "Submitted item"}</span>
-                          {line.quantity === 0 ? (
+                          {line.quantity === 0 && showLineChange ? (
                             <span className="profile-order-line-change-note">Removed by sales rep: out of stock</span>
-                          ) : hasLineChanged(line) ? (
+                          ) : showLineChange ? (
                             <span className="profile-order-line-change-note">Updated by sales rep</span>
                           ) : null}
                         </td>
                         <td>
-                          {hasLineChanged(line) ? (
+                          {showLineChange ? (
                             <div className="profile-order-value-diff">
                               <span className="profile-order-value-previous">
                                 {formatQuantity(line.submittedQuantity, line.salesUomName)}
@@ -155,7 +231,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                           )}
                         </td>
                         <td>
-                          {hasLineChanged(line) ? (
+                          {showLineChange ? (
                             <div className="profile-order-value-diff">
                               <span className="profile-order-value-previous">
                                 {formatCurrency(line.submittedOriginalUnitPrice || line.originalUnitPrice || line.unitPrice)}
@@ -167,7 +243,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                           )}
                         </td>
                         <td>
-                          {hasLineChanged(line) ? (
+                          {showLineChange ? (
                             <div className="profile-order-value-diff">
                               <span className="profile-order-value-previous">
                                 {formatDiscount(line.submittedDiscountPercent)}
@@ -179,7 +255,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                           )}
                         </td>
                         <td>
-                          {hasLineChanged(line) ? (
+                          {showLineChange ? (
                             <div className="profile-order-value-diff">
                               <span className="profile-order-value-previous">
                                 {formatCurrency(line.submittedLineTotal)}
@@ -191,10 +267,29 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
+
+              {actionLabel ? (
+                <div className="profile-order-actions">
+                  <button
+                    className={`text-button ${canCancelDirectly(order) ? "text-button-danger" : ""}`}
+                    disabled={isPending || Boolean(order.customerCancelRequestedAt)}
+                    onClick={() => handleCancel(order.id)}
+                    type="button"
+                  >
+                    {order.customerCancelRequestedAt ? "Cancellation Requested" : actionLabel}
+                  </button>
+                  {feedbackMessage ? <span className="profile-order-action-feedback">{feedbackMessage}</span> : null}
+                </div>
+              ) : feedbackMessage ? (
+                <div className="profile-order-actions">
+                  <span className="profile-order-action-feedback">{feedbackMessage}</span>
+                </div>
+              ) : null}
 
               <div className="profile-order-summary">
                 <div className="profile-order-summary-row">

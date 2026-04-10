@@ -4436,6 +4436,28 @@ select {
   line-height: 1.6;
 }
 
+.profile-order-cancel-note {
+  background: rgba(25, 58, 108, 0.06);
+}
+
+.profile-order-actions {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.profile-order-actions .text-button[disabled] {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.profile-order-action-feedback {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .admin-order-extra-fields {
   display: grid;
   gap: 18px;

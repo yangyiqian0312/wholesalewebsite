@@ -69,7 +69,12 @@ export default async function AdminOrdersPage() {
                     </Link>
                     <div className="value-sub">{order.source}</div>
                   </td>
-                  <td>{order.status}</td>
+                  <td>
+                    {order.status}
+                    {order.customerCancelRequestedAt ? (
+                      <div className="value-sub">Customer requested cancellation</div>
+                    ) : null}
+                  </td>
                   <td>
                     <Link className="admin-table-link" href={`/admin/orders/${order.id}`}>
                       {order.customerName}
