@@ -4313,6 +4313,13 @@ select {
   display: block;
 }
 
+.profile-order-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .profile-order-head span,
 .profile-order-meta {
   color: var(--muted);

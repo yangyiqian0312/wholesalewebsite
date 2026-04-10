@@ -221,7 +221,20 @@ async function findInflowCustomerByName(name: string) {
 }
 
 function buildInflowCustomerName(application: InflowCustomerApplication) {
-  return `${application.businessName}: ${application.contactName}`.trim();
+  const businessName = application.businessName.trim();
+  const contactName = application.contactName.trim();
+
+  return businessName || contactName;
+}
+
+function buildInflowAddress(application: InflowCustomerApplication) {
+  return {
+    address: application.companyAddress,
+    city: application.city,
+    state: application.stateProvince,
+    postalCode: application.zipPostalCode,
+    country: application.country,
+  };
 }
 
 async function upsertInflowCustomer(
@@ -239,11 +252,7 @@ async function upsertInflowCustomer(
     contactName: application.contactName,
     email: application.email,
     phone: application.phone,
-    address: application.companyAddress,
-    city: application.city,
-    state: application.stateProvince,
-    postalCode: application.zipPostalCode,
-    country: application.country,
+    ...buildInflowAddress(application),
   };
 
   let customer: InflowCustomer;
@@ -562,9 +571,16 @@ export async function approveWholesaleOrder(
   const salesOrderPayload = {
     salesOrderId: existingOrder.inflowSalesOrderId || randomUUID(),
     customerId: inflowCustomer.customerId,
+    contactName: existingOrder.application.contactName,
+    email: existingOrder.application.email,
+    phone: existingOrder.application.phone,
     source: existingOrder.source,
     showShipping: toMoneyNumber(normalizedFreightAmount) > 0,
     sameBillingAndShipping: true,
+    shipToCompanyName:
+      existingOrder.application.businessName.trim() || existingOrder.application.contactName.trim(),
+    billingAddress: buildInflowAddress(existingOrder.application),
+    shippingAddress: buildInflowAddress(existingOrder.application),
     orderDate: new Date().toISOString(),
     orderFreight: toMoneyNumber(normalizedFreightAmount) > 0 ? normalizedFreightAmount : null,
     orderRemarks: salesRepNote?.trim() || undefined,
