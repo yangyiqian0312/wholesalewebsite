@@ -18,7 +18,11 @@ export async function approveApplicationAction(formData: FormData) {
 
   const user = await requireAdminPortalUser();
   const applicationId = String(formData.get("applicationId") ?? "").trim();
-  const assignedSalesRepEmail = String(formData.get("assignedSalesRepEmail") ?? "").trim();
+  const selectedSalesRepEmail = String(formData.get("assignedSalesRepEmail") ?? "").trim();
+  const assignedSalesRepEmail =
+    user.role === "sales_rep"
+      ? user.email?.trim().toLowerCase() ?? ""
+      : selectedSalesRepEmail.trim().toLowerCase();
 
   if (!applicationId) {
     redirect("/admin/applications?error=missing-application");

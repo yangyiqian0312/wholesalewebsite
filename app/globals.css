@@ -2092,6 +2092,16 @@ select {
   cursor: pointer;
 }
 
+.text-button-danger {
+  color: var(--danger);
+}
+
+.admin-user-detail-actions {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
 .filter-group + .filter-group {
   margin-top: 16px;
   padding-top: 16px;

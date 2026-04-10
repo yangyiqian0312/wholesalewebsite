@@ -6,6 +6,7 @@ import {
   formatAdminDate,
 } from "../../_lib/admin-data";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
+import { deleteUserAction } from "../../_lib/user-actions";
 
 function DetailBlock({
   label,
@@ -24,10 +25,19 @@ function DetailBlock({
 
 export default async function AdminUserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ userId: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireAdminPortalUser();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const error = Array.isArray(resolvedSearchParams.error)
+    ? resolvedSearchParams.error[0]
+    : resolvedSearchParams.error;
+  const message = Array.isArray(resolvedSearchParams.message)
+    ? resolvedSearchParams.message[0]
+    : resolvedSearchParams.message;
   const { userId } = await params;
   const application = await fetchAdminApplicationById(userId);
 
@@ -49,6 +59,13 @@ export default async function AdminUserDetailPage({
 
   return (
     <div className="admin-layout">
+      {error === "delete-auth-failed" || error === "delete-record-failed" ? (
+        <section className="panel status-banner status-banner-error">
+          <strong>User deletion failed.</strong>
+          <span>{message || "Please try again. If it keeps failing, we should inspect the backend logs."}</span>
+        </section>
+      ) : null}
+
       <section className="admin-hero panel">
         <div>
           <p className="admin-hero-kicker">User Detail</p>
@@ -57,10 +74,19 @@ export default async function AdminUserDetailPage({
             {application.businessName} | {application.email} | {application.phone}
           </p>
         </div>
-        <div>
+        <div className="admin-user-detail-actions">
           <Link className="text-button" href="/admin/users">
             Back to user list
           </Link>
+          {user.role === "admin" ? (
+            <form action={deleteUserAction}>
+              <input name="applicationId" type="hidden" value={application.id} />
+              <input name="email" type="hidden" value={application.email} />
+              <button className="text-button text-button-danger" type="submit">
+                Delete user
+              </button>
+            </form>
+          ) : null}
         </div>
       </section>
 

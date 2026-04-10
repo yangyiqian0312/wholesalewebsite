@@ -11,6 +11,7 @@ import {
   completeApprovedRegistration,
   createAccountApplication,
   createAccountApplicationWithDocuments,
+  deleteAccountApplicationById,
   fetchAccountApplicationByPublicToken,
   fetchAccountApplicationByRegistrationToken,
   fetchApprovedRegisteredApplicationByEmail,
@@ -660,6 +661,45 @@ export async function registerApplicationRoutes(app: FastifyInstance) {
 
       return reply.status(500).send({
         error: "Failed to review account application",
+      });
+    }
+  });
+
+  app.delete("/api/admin/account-applications/:applicationId", async (request, reply) => {
+    if (!isAuthorizedAdminRequest(request)) {
+      return reply.status(401).send({
+        error: "Unauthorized",
+      });
+    }
+
+    const applicationId = z.string().min(1).safeParse(
+      (request.params as { applicationId?: string }).applicationId,
+    );
+
+    if (!applicationId.success) {
+      return reply.status(400).send({
+        error: "Invalid application id",
+      });
+    }
+
+    try {
+      const application = await deleteAccountApplicationById(applicationId.data);
+
+      if (!application) {
+        return reply.status(404).send({
+          error: "Application not found",
+        });
+      }
+
+      return reply.send({
+        id: application.id,
+        email: application.email,
+      });
+    } catch (error) {
+      request.log.error(error);
+
+      return reply.status(500).send({
+        error: "Failed to delete account application",
       });
     }
   });

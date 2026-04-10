@@ -2,8 +2,22 @@ import Link from "next/link";
 import { fetchAdminApplications, formatAdminDate } from "../_lib/admin-data";
 import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await requireAdminPortalUser();
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const status = Array.isArray(resolvedSearchParams.status)
+    ? resolvedSearchParams.status[0]
+    : resolvedSearchParams.status;
+  const error = Array.isArray(resolvedSearchParams.error)
+    ? resolvedSearchParams.error[0]
+    : resolvedSearchParams.error;
+  const message = Array.isArray(resolvedSearchParams.message)
+    ? resolvedSearchParams.message[0]
+    : resolvedSearchParams.message;
   const applications = await fetchAdminApplications();
   const approvedUsers = applications
     .filter((application) => application.status === "APPROVED")
@@ -26,6 +40,19 @@ export default async function AdminUsersPage() {
 
   return (
     <div className="admin-layout">
+      {status === "deleted" ? (
+        <section className="panel status-banner status-banner-success">
+          <strong>User deleted.</strong>
+          <span>The login account and customer record were removed.</span>
+        </section>
+      ) : null}
+
+      {error === "delete-missing-user" ? (
+        <section className="panel status-banner status-banner-error">
+          <strong>User deletion failed.</strong>
+          <span>{message || "The user record could not be identified for deletion."}</span>
+        </section>
+      ) : null}
 
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">

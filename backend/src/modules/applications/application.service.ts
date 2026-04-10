@@ -19,13 +19,14 @@ type AccountApplicationModel = {
   findMany: (args: unknown) => Promise<unknown>;
   findFirst: (args: unknown) => Promise<unknown>;
   update: (args: unknown) => Promise<unknown>;
+  delete: (args: unknown) => Promise<unknown>;
 };
 
 type AccountApplicationDocumentModel = {
   findFirst: (args: unknown) => Promise<unknown>;
 };
 
-function normalizeOptionalString(value?: string) {
+function normalizeOptionalString(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
@@ -381,4 +382,31 @@ export async function resubmitAccountApplication(
 
     throw error;
   }
+}
+
+export async function deleteAccountApplicationById(applicationId: string) {
+  const existingApplication = await (getAccountApplicationModel().findFirst({
+    where: {
+      id: applicationId,
+    },
+    include: {
+      documents: {
+        orderBy: [{ createdAt: "asc" }],
+      },
+    },
+  }) as unknown as Promise<AccountApplicationRecord | null>);
+
+  if (!existingApplication) {
+    return null;
+  }
+
+  await getAccountApplicationModel().delete({
+    where: {
+      id: applicationId,
+    },
+  });
+
+  await deleteApplicationUploadDirectory(applicationId).catch(() => undefined);
+
+  return existingApplication;
 }

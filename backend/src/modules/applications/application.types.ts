@@ -29,7 +29,7 @@ export const reviewAccountApplicationSchema = z.object({
   status: z.enum(["APPROVED", "DENIED"]),
   deniedReason: z.string().trim().optional().or(z.literal("")),
   reviewedByEmail: z.string().trim().email(),
-  assignedSalesRepEmail: z.string().trim().email().optional().or(z.literal("")),
+  assignedSalesRepEmail: z.string().trim().email().nullable().optional().or(z.literal("")),
 });
 
 export const updateAccountProfileSchema = z.object({
