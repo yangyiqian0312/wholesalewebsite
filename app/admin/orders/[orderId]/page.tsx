@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
 import { approveOrderAction } from "../../_lib/order-actions";
-import { OrderApprovalFields } from "../../../../components/admin/order-approval-fields";
+import { OrderApprovalEditor } from "../../../../components/admin/order-approval-editor";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 function DetailBlock({
@@ -138,121 +138,24 @@ export default async function AdminOrderDetailPage({
         </div>
       </section>
 
-      <form action={approveOrderAction} className="panel admin-application-card">
-        <input name="orderId" type="hidden" value={order.id} />
-        <div className="table-panel-header">
-          <div>
-            <h2>Line Items</h2>
-            <p className="panel-subtitle">Review submitted quantities, pricing, notes, and additional charges before approving this order</p>
-          </div>
-          {!isApproved ? (
-            <button className="primary-button" type="submit">
-              Approve Order
-            </button>
-          ) : null}
-        </div>
-
-        <div className="table-scroll">
-          <table className="catalog-table admin-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Discount</th>
-                <th>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {order.lines.map((line) => (
-                <tr key={line.id}>
-                  <td>
-                    <input name="lineId" type="hidden" value={line.id} />
-                    <strong>{line.productName || line.productId}</strong>
-                    <span>{line.productCode || line.productId}</span>
-                  </td>
-                  <td>
-                    <div className="admin-order-quantity-cell">
-                    <input
-                      className="admin-order-line-input"
-                      defaultValue={String(line.quantity)}
-                      disabled={isApproved}
-                      min={1}
-                      name={`quantity:${line.id}`}
-                      type="number"
-                    />
-                      <span>{line.salesUomName || line.standardUomName || "ea."}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      className="admin-order-line-input"
-                      defaultValue={Number(line.originalUnitPrice || line.unitPrice).toFixed(2)}
-                      disabled={isApproved}
-                      inputMode="decimal"
-                      name={`originalUnitPrice:${line.id}`}
-                      type="text"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      className="admin-order-line-input"
-                      defaultValue={line.discountPercent ? Number(line.discountPercent).toFixed(2) : "0.00"}
-                      disabled={isApproved}
-                      inputMode="decimal"
-                      name={`discountPercent:${line.id}`}
-                      type="text"
-                    />
-                  </td>
-                  <td>{formatCurrency(line.lineTotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <OrderApprovalFields
-          adjustments={order.adjustments.map((adjustment) => ({
-            id: adjustment.id,
-            label: adjustment.label,
-            amount: Number(adjustment.amount).toFixed(2),
-          }))}
-          disabled={isApproved}
-          freightAmount={order.freightAmount}
-          salesRepNote={order.salesRepNote}
-          taxName={order.taxName}
-          taxRate={order.taxRate}
-        />
-
-        <div className="profile-order-summary admin-order-summary">
-          <div className="profile-order-summary-row">
-            <span>Subtotal</span>
-            <strong>{formatCurrency(order.subtotalAmount)}</strong>
-          </div>
-          {Number(order.freightAmount) > 0 ? (
-            <div className="profile-order-summary-row">
-              <span>Freight</span>
-              <strong>{formatCurrency(order.freightAmount)}</strong>
-            </div>
-          ) : null}
-          {Number(order.taxAmount) > 0 ? (
-            <div className="profile-order-summary-row">
-              <span>{order.taxName ? `${order.taxName} ${Number(order.taxRate || "0").toFixed(2)}%` : "Tax"}</span>
-              <strong>{formatCurrency(order.taxAmount)}</strong>
-            </div>
-          ) : null}
-          {order.adjustments.map((adjustment) => (
-            <div className="profile-order-summary-row" key={adjustment.id}>
-              <span>{adjustment.label}</span>
-              <strong>{formatCurrency(adjustment.amount)}</strong>
-            </div>
-          ))}
-          <div className="profile-order-summary-row profile-order-summary-total">
-            <span>Total</span>
-            <strong>{formatCurrency(order.totalAmount)}</strong>
-          </div>
-        </div>
-      </form>
+      <OrderApprovalEditor
+        action={approveOrderAction}
+        disabled={isApproved}
+        freightAmount={order.freightAmount}
+        initialAdjustments={order.adjustments.map((adjustment) => ({
+          id: adjustment.id,
+          label: adjustment.label,
+          amount: Number(adjustment.amount).toFixed(2),
+        }))}
+        initialLines={order.lines}
+        initialSubtotal={order.subtotalAmount}
+        initialTaxName={order.taxName}
+        initialTaxRate={order.taxRate}
+        initialTotal={order.totalAmount}
+        orderId={order.id}
+        salesRepNote={order.salesRepNote}
+        taxAmount={order.taxAmount}
+      />
     </div>
   );
 }
