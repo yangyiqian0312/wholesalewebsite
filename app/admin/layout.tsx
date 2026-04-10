@@ -31,11 +31,12 @@ export default async function AdminLayout({
   children: ReactNode;
 }) {
   const user = await requireAdminPortalUser();
+  const portalLabel = user.role === "sales_rep" ? "Sales Rep Portal" : "Admin Portal";
 
   const sidebarContent = (
     <>
       <div className="admin-sidebar-head">
-        <p className="admin-sidebar-kicker">Admin Portal</p>
+        <p className="admin-sidebar-kicker">{portalLabel}</p>
         <h1>Wholesale Ops</h1>
         <span>{user.email}</span>
       </div>
@@ -68,7 +69,7 @@ export default async function AdminLayout({
         <details className="panel admin-sidebar admin-sidebar-mobile">
           <summary className="admin-sidebar-summary">
             <div className="admin-sidebar-summary-copy">
-              <p className="admin-sidebar-kicker">Admin Portal</p>
+              <p className="admin-sidebar-kicker">{portalLabel}</p>
               <strong>Wholesale Ops</strong>
               <span className="admin-sidebar-summary-email">{user.email}</span>
             </div>
