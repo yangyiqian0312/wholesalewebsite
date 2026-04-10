@@ -12,6 +12,31 @@ const SYNC_INCLUDE = "defaultPrice,prices,productBarcodes,inventoryLines.locatio
 const PRIMARY_CATALOG_LOCATION = "152 Main";
 const PRICING_SCHEME_PAGE_SIZE = 100;
 
+export type ProductSyncStatus = "idle" | "running" | "success" | "error";
+
+export type ProductSyncState = {
+  status: ProductSyncStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  fetchedCount: number | null;
+  syncedCount: number | null;
+  skippedCount: number | null;
+  syncedAt: string | null;
+  error: string | null;
+};
+
+let activeSyncPromise: Promise<void> | null = null;
+let currentSyncState: ProductSyncState = {
+  status: "idle",
+  startedAt: null,
+  finishedAt: null,
+  fetchedCount: null,
+  syncedCount: null,
+  skippedCount: null,
+  syncedAt: null,
+  error: null,
+};
+
 function getInflowProductId(product: InflowProduct) {
   return product.productId ?? product.id ?? product.entityId ?? null;
 }
@@ -225,4 +250,65 @@ export async function syncInflowProductsToDatabase() {
     skippedCount,
     syncedAt: new Date().toISOString(),
   };
+}
+
+export function getProductSyncState() {
+  return currentSyncState;
+}
+
+export function startProductSync() {
+  if (activeSyncPromise) {
+    return {
+      started: false,
+      state: currentSyncState,
+    } as const;
+  }
+
+  currentSyncState = {
+    status: "running",
+    startedAt: new Date().toISOString(),
+    finishedAt: null,
+    fetchedCount: null,
+    syncedCount: null,
+    skippedCount: null,
+    syncedAt: null,
+    error: null,
+  };
+
+  activeSyncPromise = (async () => {
+    try {
+      const result = await syncInflowProductsToDatabase();
+      currentSyncState = {
+        status: "success",
+        startedAt: currentSyncState.startedAt,
+        finishedAt: new Date().toISOString(),
+        fetchedCount: result.fetchedCount,
+        syncedCount: result.syncedCount,
+        skippedCount: result.skippedCount,
+        syncedAt: result.syncedAt,
+        error: null,
+      };
+    } catch (error) {
+      currentSyncState = {
+        status: "error",
+        startedAt: currentSyncState.startedAt,
+        finishedAt: new Date().toISOString(),
+        fetchedCount: null,
+        syncedCount: null,
+        skippedCount: null,
+        syncedAt: null,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to sync products into the local database",
+      };
+    } finally {
+      activeSyncPromise = null;
+    }
+  })();
+
+  return {
+    started: true,
+    state: currentSyncState,
+  } as const;
 }

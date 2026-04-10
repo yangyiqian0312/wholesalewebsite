@@ -4,6 +4,38 @@ import { createClient } from "./supabase/server";
 
 export type AdminPortalRole = "admin" | "sales_rep";
 
+function getAdminEmails() {
+  return (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function getSalesRepEmailsFromEnv() {
+  return (process.env.SALES_REP_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function getFallbackRole(email: string | null | undefined): AdminPortalRole | null {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  if (getAdminEmails().includes(normalizedEmail)) {
+    return "admin";
+  }
+
+  if (getSalesRepEmailsFromEnv().includes(normalizedEmail)) {
+    return "sales_rep";
+  }
+
+  return null;
+}
+
 export async function getCurrentUser() {
   const supabase = await createClient();
   const {
@@ -34,14 +66,14 @@ export async function fetchAdminPortalRole(email: string | null | undefined): Pr
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to resolve admin portal role: ${response.status}`);
+    return getFallbackRole(normalizedEmail);
   }
 
   const payload = (await response.json()) as {
     role?: AdminPortalRole | null;
   };
 
-  return payload.role ?? null;
+  return payload.role ?? getFallbackRole(normalizedEmail);
 }
 
 export async function fetchSalesRepEmails() {
@@ -59,7 +91,7 @@ export async function fetchSalesRepEmails() {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch sales reps: ${response.status}`);
+    return getSalesRepEmailsFromEnv();
   }
 
   const payload = (await response.json()) as Array<{

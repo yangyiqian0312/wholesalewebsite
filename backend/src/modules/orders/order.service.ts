@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "../../db/prisma.js";
-import { inflowRequest } from "../../integrations/inflow/client.js";
 import { fetchApprovedRegisteredApplicationByEmail } from "../applications/application.service.js";
+import { resolveAdminPortalRoleByEmail } from "../admin-portal/admin-portal.service.js";
+import { inflowRequest } from "../../integrations/inflow/client.js";
 
 type SubmitOrderItemInput = {
   productId: string;
@@ -9,6 +10,12 @@ type SubmitOrderItemInput = {
   unitPrice: string;
   productName?: string;
   productCode?: string;
+};
+
+type ApproveOrderLineInput = {
+  id: string;
+  quantity: number;
+  unitPrice: string;
 };
 
 type InflowCustomer = {
@@ -23,6 +30,20 @@ type SubmitOrderResult = {
   salesOrderId?: string;
   orderNumber?: string;
 };
+
+type InflowCustomerApplication = {
+  businessName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  companyAddress: string;
+  city: string;
+  stateProvince: string;
+  zipPostalCode: string;
+  country: string;
+};
+
+type WholesaleOrderStatus = "SUBMITTED" | "APPROVED" | "PAID" | "CANCELLED";
 
 type WholesaleOrderLineRecord = {
   id: string;
@@ -41,6 +62,9 @@ type WholesaleOrderRecord = {
   customerEmail: string;
   customerName: string;
   businessName: string;
+  status: WholesaleOrderStatus;
+  approvedByEmail: string | null;
+  approvedAt: Date | null;
   inflowSalesOrderId: string | null;
   inflowOrderNumber: string | null;
   source: string;
@@ -90,19 +114,14 @@ async function findInflowCustomerByName(name: string) {
   return customers.find((customer) => customer.name?.trim().toLowerCase() === name.trim().toLowerCase()) ?? null;
 }
 
-function buildInflowCustomerName(application: NonNullable<Awaited<ReturnType<typeof fetchApprovedRegisteredApplicationByEmail>>>) {
+function buildInflowCustomerName(application: InflowCustomerApplication) {
   return `${application.businessName}: ${application.contactName}`.trim();
 }
 
-async function upsertInflowCustomer(email: string) {
-  const application = await fetchApprovedRegisteredApplicationByEmail(email);
-
-  if (!application) {
-    throw new Error("No approved registered wholesale application found for this email");
-  }
-
+async function upsertInflowCustomer(
+  application: InflowCustomerApplication,
+) {
   const inflowCustomerName = buildInflowCustomerName(application);
-
   const existingCustomer =
     (await findInflowCustomerByEmail(application.email)) ??
     (await findInflowCustomerByName(inflowCustomerName));
@@ -159,20 +178,14 @@ async function upsertInflowCustomer(email: string) {
   }
 
   return {
-    application,
     customerId: customer.customerId,
   };
 }
 
 async function createLocalWholesaleOrder(
-  application: Awaited<ReturnType<typeof fetchApprovedRegisteredApplicationByEmail>>,
-  salesOrder: SubmitOrderResult,
+  application: NonNullable<Awaited<ReturnType<typeof fetchApprovedRegisteredApplicationByEmail>>>,
   items: readonly SubmitOrderItemInput[],
 ) {
-  if (!application) {
-    throw new Error("No approved wholesale application found for this email");
-  }
-
   const normalizedItems = items.map((item) => {
     const quantity = normalizeQuantity(item.quantity);
     const unitPrice = parseMoney(item.unitPrice);
@@ -198,8 +211,11 @@ async function createLocalWholesaleOrder(
       customerEmail: application.email,
       customerName: application.contactName,
       businessName: application.businessName,
-      inflowSalesOrderId: salesOrder.salesOrderId ?? null,
-      inflowOrderNumber: salesOrder.orderNumber ?? null,
+      status: "SUBMITTED",
+      approvedByEmail: null,
+      approvedAt: null,
+      inflowSalesOrderId: null,
+      inflowOrderNumber: null,
       source: "Crossing Web Store",
       subtotalAmount,
       submittedAt: new Date(),
@@ -279,22 +295,115 @@ export async function submitSalesOrderForApprovedCustomer(
     throw new Error("Cart is empty");
   }
 
-  const { application, customerId } = await upsertInflowCustomer(email);
+  const application = await fetchApprovedRegisteredApplicationByEmail(email);
 
-  const payload = {
-    salesOrderId: randomUUID(),
-    customerId,
-    source: "Crossing Web Store",
+  if (!application) {
+    throw new Error("No approved registered wholesale application found for this email");
+  }
+
+  const localOrder = await createLocalWholesaleOrder(application, items);
+
+  return {
+    localOrderId: localOrder.id,
+    status: localOrder.status,
+  };
+}
+
+export async function approveWholesaleOrder(
+  orderId: string,
+  reviewerEmail: string,
+  lines: readonly ApproveOrderLineInput[],
+) {
+  const normalizedReviewerEmail = reviewerEmail.trim().toLowerCase();
+
+  if (!normalizedReviewerEmail) {
+    throw new Error("Reviewer email is required");
+  }
+
+  const reviewerRole = await resolveAdminPortalRoleByEmail(normalizedReviewerEmail);
+
+  if (!reviewerRole) {
+    throw new Error("Only admin portal users can approve orders");
+  }
+
+  const existingOrder = await prisma.wholesaleOrder.findUnique({
+    where: {
+      id: orderId,
+    },
+    include: {
+      lines: {
+        orderBy: [{ createdAt: "asc" }],
+      },
+      application: {
+        include: {
+          documents: {
+            orderBy: [{ createdAt: "asc" }],
+          },
+        },
+      },
+    },
+  });
+
+  if (!existingOrder) {
+    throw new Error("Order not found");
+  }
+
+  if (
+    reviewerRole === "sales_rep" &&
+    existingOrder.application.assignedSalesRepEmail?.trim().toLowerCase() !== normalizedReviewerEmail
+  ) {
+    throw new Error("You can only approve orders for your own customers");
+  }
+
+  if (existingOrder.status !== "SUBMITTED") {
+    throw new Error("Only submitted orders can be approved");
+  }
+
+  const lineMap = new Map(lines.map((line) => [line.id, line]));
+  const missingLine = existingOrder.lines.find((line) => !lineMap.has(line.id));
+
+  if (missingLine || lines.length !== existingOrder.lines.length) {
+    throw new Error("Order line payload does not match the current order");
+  }
+
+  const normalizedLines = existingOrder.lines.map((line) => {
+    const input = lineMap.get(line.id);
+
+    if (!input) {
+      throw new Error("Missing line update");
+    }
+
+    const quantity = normalizeQuantity(input.quantity);
+    const unitPrice = parseMoney(input.unitPrice);
+    const lineTotal = (toMoneyNumber(unitPrice) * quantity).toFixed(2);
+
+    return {
+      id: line.id,
+      quantity,
+      unitPrice,
+      lineTotal,
+    };
+  });
+
+  const subtotalAmount = normalizedLines
+    .reduce((total, line) => total + toMoneyNumber(line.lineTotal), 0)
+    .toFixed(2);
+
+  const inflowCustomer = await upsertInflowCustomer(existingOrder.application);
+  const salesOrderPayload = {
+    salesOrderId: existingOrder.inflowSalesOrderId || randomUUID(),
+    customerId: inflowCustomer.customerId,
+    source: existingOrder.source,
     showShipping: false,
     sameBillingAndShipping: true,
     orderDate: new Date().toISOString(),
-    lines: items.map((item) => ({
+    lines: normalizedLines.map((line) => ({
       salesOrderLineId: randomUUID(),
-      productId: item.productId,
-      unitPrice: parseMoney(item.unitPrice),
+      productId: existingOrder.lines.find((existingLine) => existingLine.id === line.id)?.productId ?? "",
+      unitPrice: line.unitPrice,
       quantity: {
-        standardQuantity: String(normalizeQuantity(item.quantity)),
-        uomQuantity: String(normalizeQuantity(item.quantity)),
+        standardQuantity: String(line.quantity),
+        uomQuantity: String(line.quantity),
       },
     })),
   };
@@ -304,14 +413,43 @@ export async function submitSalesOrderForApprovedCustomer(
     {},
     {
       method: "PUT",
-      body: payload,
+      body: salesOrderPayload,
     },
   );
 
-  const localOrder = await createLocalWholesaleOrder(application, salesOrder, items);
+  const updatedOrder = await prisma.$transaction(async (tx) => {
+    for (const line of normalizedLines) {
+      await tx.wholesaleOrderLine.update({
+        where: {
+          id: line.id,
+        },
+        data: {
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          lineTotal: line.lineTotal,
+        },
+      });
+    }
 
-  return {
-    ...salesOrder,
-    localOrderId: localOrder.id,
-  };
+    return tx.wholesaleOrder.update({
+      where: {
+        id: orderId,
+      },
+      data: {
+        status: "APPROVED",
+        approvedByEmail: normalizedReviewerEmail,
+        approvedAt: new Date(),
+        inflowSalesOrderId: salesOrder.salesOrderId ?? existingOrder.inflowSalesOrderId,
+        inflowOrderNumber: salesOrder.orderNumber ?? existingOrder.inflowOrderNumber,
+        subtotalAmount,
+      },
+      include: {
+        lines: {
+          orderBy: [{ createdAt: "asc" }],
+        },
+      },
+    });
+  });
+
+  return updatedOrder as unknown as WholesaleOrderRecord;
 }

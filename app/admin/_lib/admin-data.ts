@@ -4,6 +4,7 @@ export type ApplicationStatus = "PENDING" | "APPROVED" | "DENIED";
 
 export type AccountApplication = {
   id: string;
+  accountNumber: string | null;
   publicEditToken: string | null;
   contactName: string;
   email: string;
@@ -81,6 +82,9 @@ export type AdminOrder = {
   customerEmail: string;
   customerName: string;
   businessName: string;
+  status: "SUBMITTED" | "APPROVED" | "PAID" | "CANCELLED";
+  approvedByEmail: string | null;
+  approvedAt: string | null;
   inflowSalesOrderId: string | null;
   inflowOrderNumber: string | null;
   source: string;

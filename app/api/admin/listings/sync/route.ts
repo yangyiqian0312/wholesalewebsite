@@ -4,7 +4,6 @@ import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
 export async function POST() {
   await requireAdminPortalUser();
-
   const response = await fetch(`${getBackendBaseUrl()}/api/sync/inflow/products`, {
     method: "POST",
     cache: "no-store",
@@ -27,6 +26,40 @@ export async function POST() {
   revalidatePath("/catalog");
 
   return Response.json(await response.json(), {
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
+}
+
+export async function GET() {
+  await requireAdminPortalUser();
+
+  const response = await fetch(`${getBackendBaseUrl()}/api/sync/inflow/products/status`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+
+    return Response.json(
+      {
+        error: payload?.error || "Failed to fetch sync status.",
+      },
+      {
+        status: response.status,
+      },
+    );
+  }
+
+  const payload = await response.json();
+
+  if ((payload as { status?: string }).status === "success") {
+    revalidatePath("/admin/listings");
+    revalidatePath("/catalog");
+  }
+
+  return Response.json(payload, {
     headers: {
       "Cache-Control": "no-store",
     },

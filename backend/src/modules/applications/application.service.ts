@@ -32,6 +32,36 @@ function normalizeOptionalString(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
+function generateInitialAccountNumber() {
+  return String(100000 + Math.floor(Math.random() * 900000));
+}
+
+async function allocateNextAccountNumber() {
+  const latestAccount = await getAccountApplicationModel().findFirst({
+    where: {
+      accountNumber: {
+        not: null,
+      },
+    },
+    orderBy: [{ accountNumber: "desc" }],
+    select: {
+      accountNumber: true,
+    },
+  }) as { accountNumber: string | null } | null;
+
+  if (!latestAccount?.accountNumber) {
+    return generateInitialAccountNumber();
+  }
+
+  const nextValue = Number.parseInt(latestAccount.accountNumber, 10) + 1;
+
+  if (!Number.isFinite(nextValue) || nextValue > 999999) {
+    throw new Error("Unable to allocate the next account number");
+  }
+
+  return String(nextValue).padStart(6, "0");
+}
+
 function getAccountApplicationModel() {
   return (prisma as typeof prisma & { accountApplication: AccountApplicationModel }).accountApplication;
 }
@@ -277,12 +307,32 @@ export async function reviewAccountApplication(
       : reviewerRole === "sales_rep"
         ? reviewerEmail
         : normalizeOptionalString(input.assignedSalesRepEmail);
+  const existingApplication = await getAccountApplicationModel().findFirst({
+    where: {
+      id: applicationId,
+    },
+    include: {
+      documents: {
+        orderBy: [{ createdAt: "asc" }],
+      },
+    },
+  }) as AccountApplicationRecord | null;
+
+  if (!existingApplication) {
+    throw new Error("Application not found");
+  }
+
+  const accountNumber =
+    input.status === "APPROVED"
+      ? existingApplication.accountNumber ?? await allocateNextAccountNumber()
+      : existingApplication.accountNumber;
 
   return (getAccountApplicationModel().update({
     where: {
       id: applicationId,
     },
     data: {
+      accountNumber,
       status: input.status,
       deniedReason: input.status === "DENIED" ? normalizeOptionalString(input.deniedReason) : null,
       reviewedByEmail: reviewerEmail,

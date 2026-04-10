@@ -37,7 +37,7 @@ export default async function AdminLayout({
     <>
       <div className="admin-sidebar-head">
         <p className="admin-sidebar-kicker">{portalLabel}</p>
-        <h1>Wholesale Ops</h1>
+        <h1>Welcome,</h1>
         <span>{user.email}</span>
       </div>
 
@@ -70,7 +70,7 @@ export default async function AdminLayout({
           <summary className="admin-sidebar-summary">
             <div className="admin-sidebar-summary-copy">
               <p className="admin-sidebar-kicker">{portalLabel}</p>
-              <strong>Wholesale Ops</strong>
+              <strong>Welcome,</strong>
               <span className="admin-sidebar-summary-email">{user.email}</span>
             </div>
             <span className="admin-sidebar-summary-icon" aria-hidden="true">

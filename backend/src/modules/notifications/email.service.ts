@@ -16,6 +16,14 @@ type ApprovedApplicationEmailInput = {
   registrationLink: string;
 };
 
+type ApprovedOrderEmailInput = {
+  to: string;
+  contactName: string;
+  businessName: string;
+  orderReference: string;
+  orderLink: string;
+};
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -78,6 +86,31 @@ function buildApprovedApplicationEmailHtml(input: ApprovedApplicationEmailInput)
   `.trim();
 }
 
+function buildApprovedOrderEmailHtml(input: ApprovedOrderEmailInput) {
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6;">
+      <p>Hello ${escapeHtml(input.contactName)},</p>
+      <p>
+        Your wholesale order for <strong>${escapeHtml(input.businessName)}</strong> has been reviewed and approved.
+      </p>
+      <p>
+        Order reference: <strong>${escapeHtml(input.orderReference)}</strong>
+      </p>
+      <p>
+        You can now review the approved order and continue to payment from your account:
+      </p>
+      <p>
+        <a href="${input.orderLink}" style="color:#1e4e8c;font-weight:700;">
+          View your approved order
+        </a>
+      </p>
+      <p>
+        If anything looks incorrect, please reply to this email before sending payment.
+      </p>
+    </div>
+  `.trim();
+}
+
 export async function sendDeniedApplicationEmail(input: DeniedApplicationEmailInput) {
   if (!config.RESEND_API_KEY || !config.RESEND_FROM_EMAIL) {
     return {
@@ -119,6 +152,32 @@ export async function sendApprovedApplicationEmail(input: ApprovedApplicationEma
     to: [input.to],
     subject: "Your wholesale account has been approved",
     html: buildApprovedApplicationEmailHtml(input),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    sent: true,
+  } as const;
+}
+
+export async function sendApprovedOrderEmail(input: ApprovedOrderEmailInput) {
+  if (!config.RESEND_API_KEY || !config.RESEND_FROM_EMAIL) {
+    return {
+      sent: false,
+      reason: "Email provider is not configured",
+    } as const;
+  }
+
+  const resend = new Resend(config.RESEND_API_KEY);
+
+  const { error } = await resend.emails.send({
+    from: config.RESEND_FROM_EMAIL,
+    to: [input.to],
+    subject: "Your wholesale order is ready for payment",
+    html: buildApprovedOrderEmailHtml(input),
   });
 
   if (error) {

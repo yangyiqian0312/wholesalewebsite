@@ -28,6 +28,7 @@ export default async function AdminUsersPage({
     )
     .map((application) => ({
     id: application.id,
+    accountNumber: application.accountNumber,
     name: application.contactName,
     email: application.email,
     businessName: application.businessName,
@@ -54,32 +55,6 @@ export default async function AdminUsersPage({
         </section>
       ) : null}
 
-      <section className="admin-summary-grid">
-        <article className="panel admin-summary-card">
-          <span>Approved Users</span>
-          <strong>{approvedUsers.length}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Reviewed Today</span>
-          <strong>
-            {approvedUsers.filter((user) => {
-              if (!user.reviewedAt) {
-                return false;
-              }
-
-              const reviewedDate = new Date(user.reviewedAt);
-              const now = new Date();
-
-              return reviewedDate.toDateString() === now.toDateString();
-            }).length}
-          </strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Newest Approval</span>
-          <strong>{approvedUsers[0] ? formatAdminDate(approvedUsers[0].reviewedAt) : "None"}</strong>
-        </article>
-      </section>
-
       <section className="panel admin-table-panel">
         <div className="table-panel-header">
           <div>
@@ -92,6 +67,7 @@ export default async function AdminUsersPage({
           <table className="catalog-table admin-table">
             <thead>
               <tr>
+                <th>Account ID</th>
                 <th>Contact</th>
                 <th>Company</th>
                 <th>Sales Rep</th>
@@ -102,6 +78,7 @@ export default async function AdminUsersPage({
             <tbody>
               {approvedUsers.length ? approvedUsers.map((user) => (
                 <tr key={user.id}>
+                  <td>{user.accountNumber || "Pending"}</td>
                   <td>
                     <Link className="admin-table-link" href={`/admin/users/${user.id}`}>
                       <div className="admin-table-main">{user.name}</div>
@@ -123,7 +100,7 @@ export default async function AdminUsersPage({
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="admin-table-empty">No approved users yet.</div>
                   </td>
                 </tr>

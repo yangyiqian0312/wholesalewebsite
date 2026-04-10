@@ -66,6 +66,7 @@ export type AccountApplicationDocumentRecord = {
 
 export type AccountApplicationRecord = {
   id: string;
+  accountNumber: string | null;
   publicEditToken: string | null;
   publicRegistrationToken: string | null;
   contactName: string;

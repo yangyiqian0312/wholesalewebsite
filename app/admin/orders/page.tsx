@@ -52,6 +52,7 @@ export default async function AdminOrdersPage() {
             <thead>
               <tr>
                 <th>Order</th>
+                <th>Status</th>
                 <th>Customer</th>
                 <th>Company</th>
                 <th>Items</th>
@@ -64,12 +65,11 @@ export default async function AdminOrdersPage() {
                 <tr key={order.id}>
                   <td>
                     <Link className="admin-table-link" href={`/admin/orders/${order.id}`}>
-                      <div className="admin-table-main">
-                        {order.inflowOrderNumber || order.inflowSalesOrderId || order.id}
-                      </div>
+                      <div className="admin-table-main">{order.inflowOrderNumber || order.inflowSalesOrderId || order.id}</div>
                     </Link>
                     <div className="value-sub">{order.source}</div>
                   </td>
+                  <td>{order.status}</td>
                   <td>
                     <Link className="admin-table-link" href={`/admin/orders/${order.id}`}>
                       {order.customerName}
@@ -83,7 +83,7 @@ export default async function AdminOrdersPage() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="admin-table-empty">No submitted orders yet.</div>
                   </td>
                 </tr>

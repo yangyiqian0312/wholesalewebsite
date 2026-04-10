@@ -1179,32 +1179,33 @@ select {
 
 .admin-listing-panel {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   padding: 0 24px 24px;
   border-top: 1px solid rgba(217, 222, 231, 0.88);
-  background:
-    linear-gradient(180deg, rgba(247, 250, 255, 0.84), rgba(255, 255, 255, 0.98)),
-    var(--surface);
+  background: var(--surface);
 }
 
 .admin-listing-details-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(180px, 1fr));
-  gap: 16px;
-  align-items: stretch;
-  padding-top: 18px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px 16px;
+  align-items: start;
+  padding-top: 16px;
 }
 
 .admin-listing-name-field {
-  grid-column: 1 / span 3;
+  grid-column: 1 / -1;
 }
 
-.admin-listing-price-field {
-  grid-column: auto;
-}
-
+.admin-listing-details-grid > .admin-listing-static-field:nth-of-type(1),
+.admin-listing-details-grid > .admin-listing-static-field:nth-of-type(2),
 .admin-listing-date-field {
-  grid-column: auto;
+  grid-column: span 2;
+}
+
+.admin-listing-market-price-field,
+.admin-listing-price-field {
+  grid-column: span 3;
 }
 
 .admin-listing-inline-actions {
@@ -1223,15 +1224,15 @@ select {
 }
 
 .admin-listing-description-field {
-  padding: 14px;
-  border: 1px solid rgba(23, 56, 112, 0.08);
-  border-radius: 16px;
-  background: rgba(249, 251, 255, 0.84);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .admin-listing-input-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   align-content: start;
   margin: 0;
 }
@@ -1264,11 +1265,18 @@ select {
 
 .admin-listing-inline-value-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   align-content: start;
 }
 
 .admin-listing-inline-value-field strong {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(23, 56, 112, 0.12);
+  border-radius: 14px;
+  background: #fff;
   color: var(--primary-dark);
   font-size: 18px;
   line-height: 1.3;
@@ -1277,16 +1285,23 @@ select {
 
 .admin-listing-static-field {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   align-content: start;
-  min-height: 100%;
-  padding: 14px;
-  border: 1px solid rgba(23, 56, 112, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.8);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .admin-listing-static-field strong {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(23, 56, 112, 0.12);
+  border-radius: 14px;
+  background: #fff;
   color: var(--primary-dark);
   font-size: 18px;
   line-height: 1.3;
@@ -1295,7 +1310,7 @@ select {
 
 .admin-listing-description-field {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .admin-listing-description-header {
@@ -1306,9 +1321,9 @@ select {
 }
 
 .admin-listing-description-header p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .admin-description-editor-shell {
@@ -2100,6 +2115,28 @@ select {
   display: grid;
   justify-items: end;
   gap: 12px;
+}
+
+.admin-inline-message {
+  margin: 0;
+  color: var(--primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-order-line-input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.admin-order-line-input:disabled {
+  opacity: 0.8;
+  cursor: default;
 }
 
 .filter-group + .filter-group {

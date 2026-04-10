@@ -2,6 +2,7 @@
 
 export type AccountOrder = {
   id: string;
+  status: "SUBMITTED" | "APPROVED" | "PAID" | "CANCELLED";
   inflowOrderNumber: string | null;
   inflowSalesOrderId: string | null;
   subtotalAmount: string;
@@ -47,6 +48,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
               <strong>${Number(order.subtotalAmount).toFixed(2)}</strong>
             </div>
             <div className="profile-order-meta">
+              <span>Status: {order.status}</span>
               <span>{order.lines.length} items</span>
             </div>
             <div className="profile-order-lines">

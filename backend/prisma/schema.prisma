@@ -18,6 +18,13 @@ enum AdminPortalRole {
   sales_rep
 }
 
+enum WholesaleOrderStatus {
+  SUBMITTED
+  APPROVED
+  PAID
+  CANCELLED
+}
+
 model AdminPortalUser {
   id        String          @id @default(cuid())
   email     String          @unique
@@ -56,6 +63,7 @@ model CatalogProduct {
 
 model AccountApplication {
   id                        String            @id @default(cuid())
+  accountNumber             String?           @unique
   publicEditToken           String?           @unique
   publicRegistrationToken   String?           @unique
   contactName               String
@@ -92,6 +100,7 @@ model AccountApplication {
 
   @@index([status, createdAt])
   @@index([email])
+  @@index([accountNumber])
   @@index([assignedSalesRepEmail, status])
 }
 
@@ -115,6 +124,9 @@ model WholesaleOrder {
   customerEmail         String
   customerName          String
   businessName          String
+  status                WholesaleOrderStatus @default(SUBMITTED)
+  approvedByEmail       String?
+  approvedAt            DateTime?
   inflowSalesOrderId    String?
   inflowOrderNumber     String?
   source                String
@@ -126,6 +138,7 @@ model WholesaleOrder {
 
   @@index([applicationId, submittedAt])
   @@index([customerEmail, submittedAt])
+  @@index([status, submittedAt])
   @@index([submittedAt])
 }
 

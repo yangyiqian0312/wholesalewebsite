@@ -85,7 +85,6 @@ type FormState = {
   shippingStateProvince: string;
   shippingZipPostalCode: string;
   shippingCountry: string;
-  onlineChannelNotes: string;
   productInterests: string[];
   expectedPurchaseVolume: string;
   hasResellerPermitOrTaxId: string;
@@ -170,7 +169,6 @@ function buildInitialState(defaults: EditableApplication | null | undefined): Fo
     shippingStateProvince: shippingAddress.stateProvince,
     shippingZipPostalCode: shippingAddress.zipPostalCode,
     shippingCountry: shippingAddress.country,
-    onlineChannelNotes: defaults?.onlineChannelNotes ?? "",
     productInterests: defaults?.productInterests ?? [],
     expectedPurchaseVolume: defaults?.expectedPurchaseVolume ?? "",
     hasResellerPermitOrTaxId: defaults?.hasResellerPermitOrTaxId ? "Yes" : "",
@@ -381,12 +379,10 @@ function CheckboxField({
 }
 
 export function OpenAccountForm({
-  backendBaseUrl,
   editableApplication,
   initialStatus,
   initialMessage,
 }: {
-  backendBaseUrl: string;
   editableApplication: EditableApplication | null;
   initialStatus?: string;
   initialMessage?: string;
@@ -519,7 +515,6 @@ export function OpenAccountForm({
       physicalStoreAddress: shippingAddressSameAsCompany
         ? undefined
         : normalizeOptionalString(buildShippingAddressValue(formState)),
-      onlineChannelNotes: normalizeOptionalString(formState.onlineChannelNotes),
       productInterests: formState.productInterests,
       expectedPurchaseVolume: formState.expectedPurchaseVolume.trim(),
       hasResellerPermitOrTaxId: formState.hasResellerPermitOrTaxId === "Yes",
@@ -527,8 +522,8 @@ export function OpenAccountForm({
     };
 
     const requestUrl = editableApplication?.publicEditToken
-      ? `${backendBaseUrl}/api/account-applications/edit/${editableApplication.publicEditToken}`
-      : `${backendBaseUrl}/api/account-applications`;
+      ? `/api/account-applications/edit/${editableApplication.publicEditToken}`
+      : "/api/account-applications";
     const requestMethod = editableApplication?.publicEditToken ? "PUT" : "POST";
 
     const response = await fetch(requestUrl, selectedFiles.length > 0
@@ -824,20 +819,12 @@ export function OpenAccountForm({
 
         <TextField
           error={fieldErrors.expectedPurchaseVolume}
-          label="Expected Purchase Volume"
+          label="Expected Purchase Volume Per Month"
           name="expectedPurchaseVolume"
           onChange={(value) => updateField("expectedPurchaseVolume", value.replace(/[^\d]/g, ""))}
           placeholder="1000"
           required
           value={formState.expectedPurchaseVolume}
-        />
-
-        <TextAreaField
-          label="Online Channel Notes"
-          name="onlineChannelNotes"
-          onChange={(value) => updateField("onlineChannelNotes", value)}
-          placeholder="Add marketplace usernames, storefront URLs, or other channel context."
-          value={formState.onlineChannelNotes}
         />
       </FormSection>
 

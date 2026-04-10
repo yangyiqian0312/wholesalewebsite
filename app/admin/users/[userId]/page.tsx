@@ -92,6 +92,10 @@ export default async function AdminUserDetailPage({
 
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">
+          <span>Account ID</span>
+          <strong>{application.accountNumber || "Pending"}</strong>
+        </article>
+        <article className="panel admin-summary-card">
           <span>Status</span>
           <strong>{application.status}</strong>
         </article>
@@ -118,6 +122,7 @@ export default async function AdminUserDetailPage({
         </div>
 
         <div className="admin-application-grid">
+          <DetailBlock label="Account ID" value={application.accountNumber || "Pending"} />
           <DetailBlock label="Business Name" value={application.businessName} />
           <DetailBlock label="Type of Ownership" value={application.businessType} />
           <DetailBlock label="Email" value={application.email} />

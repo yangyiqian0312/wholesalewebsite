@@ -7,6 +7,8 @@ type InflowRequestOptions = {
   headers?: Record<string, string>;
 };
 
+const INFLOW_REQUEST_TIMEOUT_MS = 15000;
+
 function buildQueryString(query: Record<string, QueryValue>) {
   const searchParams = new URLSearchParams();
 
@@ -28,17 +30,34 @@ export async function inflowRequest<T>(
   options: InflowRequestOptions = {},
 ): Promise<T> {
   const url = `${config.INFLOW_BASE_URL}/${config.INFLOW_COMPANY_ID}${path}${buildQueryString(query)}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), INFLOW_REQUEST_TIMEOUT_MS);
 
-  const response = await fetch(url, {
-    method: options.method ?? "GET",
-    headers: {
-      Accept: "application/json;version=2026-02-24",
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${config.INFLOW_API_KEY}`,
-      ...options.headers,
-    },
-    ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: options.method ?? "GET",
+      headers: {
+        Accept: "application/json;version=2026-02-24",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.INFLOW_API_KEY}`,
+        ...options.headers,
+      },
+      signal: controller.signal,
+      ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
+    });
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Inflow request timed out after ${INFLOW_REQUEST_TIMEOUT_MS / 1000} seconds: ${path}`);
+    }
+
+    throw error;
+  }
+
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text();

@@ -69,7 +69,11 @@ function ApplicationCard({
         <span className={`status-tag ${statusClassName}`}>{application.status}</span>
       </div>
 
-      <div className="admin-application-grid">
+        <div className="admin-application-grid">
+        <div className="admin-application-block">
+          <span>Account ID</span>
+          <strong>{application.accountNumber || "Will be assigned on approval"}</strong>
+        </div>
         <div className="admin-application-block">
           <span>Type of Ownership</span>
           <strong>{application.businessType}</strong>

@@ -58,7 +58,8 @@ export function CartPageClient() {
       const payload = (await response.json().catch(() => null)) as
         | {
             error?: string;
-            orderNumber?: string | null;
+            localOrderId?: string | null;
+            status?: string | null;
           }
         | null;
 
@@ -68,9 +69,9 @@ export function CartPageClient() {
 
       clearCart();
       setSubmitMessage(
-        payload?.orderNumber
-          ? `Order submitted to Inflow as ${payload.orderNumber}.`
-          : "Order submitted to Inflow.",
+        payload?.status === "SUBMITTED"
+          ? "Order submitted for review. Your sales rep will confirm pricing and quantities before payment."
+          : "Order submitted for review.",
       );
     } catch (error) {
       setSubmitMessage(error instanceof Error ? error.message : "Failed to submit order");
@@ -188,7 +189,7 @@ export function CartPageClient() {
         </div>
         {submitMessage ? <p className="cart-summary-note">{submitMessage}</p> : null}
         <p className="cart-summary-note">
-          Cart is stored locally for now. Final checkout and submission can be added next.
+          Submitted orders are reviewed by your sales rep before they are approved for payment.
         </p>
         <button className="primary-button cart-summary-link" disabled={isSubmittingOrder} onClick={handleSubmitOrder} type="button">
           {isSubmittingOrder ? "Submitting..." : "Submit Order"}

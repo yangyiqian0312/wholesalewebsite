@@ -86,7 +86,6 @@ export default async function OpenAccountPage({
         </section>
 
         <OpenAccountForm
-          backendBaseUrl={getBackendBaseUrl()}
           editableApplication={editableApplication}
           initialMessage={message}
           initialStatus={status}
