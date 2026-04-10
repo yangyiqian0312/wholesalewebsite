@@ -38,7 +38,7 @@ const approveOrderSchema = z.object({
   lines: z.array(
     z.object({
       id: z.string().trim().min(1),
-      quantity: z.coerce.number().positive(),
+      quantity: z.coerce.number().min(0),
       originalUnitPrice: z.string().trim().min(1),
       discountPercent: z.string().trim().optional(),
     }),

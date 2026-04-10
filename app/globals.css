@@ -4352,6 +4352,42 @@ select {
   line-height: 1.45;
 }
 
+.profile-order-line-change-note {
+  display: block;
+  margin-top: 8px;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.profile-order-line-changed {
+  background: rgba(30, 78, 140, 0.04);
+}
+
+.profile-order-line-removed {
+  background: rgba(180, 35, 24, 0.04);
+}
+
+.profile-order-line-removed td {
+  opacity: 0.72;
+}
+
+.profile-order-line-removed strong,
+.profile-order-line-removed td > span:first-of-type {
+  text-decoration: line-through;
+}
+
+.profile-order-value-diff {
+  display: grid;
+  gap: 4px;
+}
+
+.profile-order-value-previous {
+  color: var(--muted);
+  text-decoration: line-through;
+  font-size: 12px;
+}
+
 .profile-order-summary {
   width: min(320px, 100%);
   margin-top: 18px;

@@ -61,14 +61,18 @@ type WholesaleOrderLineRecord = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
   standardUomName: string | null;
   salesUomStandardQuantity: string | null;
   salesUomQuantity: string | null;
+  submittedOriginalUnitPrice: string | null;
   originalUnitPrice: string | null;
+  submittedDiscountPercent: string | null;
   unitPrice: string;
   discountPercent: string | null;
+  submittedLineTotal: string;
   lineTotal: string;
   createdAt: Date;
 };
@@ -111,14 +115,18 @@ type PersistedWholesaleOrderLine = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
   standardUomName: string | null;
   salesUomStandardQuantity: { toString(): string } | null;
   salesUomQuantity: { toString(): string } | null;
+  submittedOriginalUnitPrice: { toString(): string } | null;
   originalUnitPrice: { toString(): string } | null;
+  submittedDiscountPercent: { toString(): string } | null;
   unitPrice: { toString(): string };
   discountPercent: { toString(): string } | null;
+  submittedLineTotal: { toString(): string };
   lineTotal: { toString(): string };
 };
 
@@ -166,6 +174,14 @@ function normalizeQuantity(value: number) {
   }
 
   return Math.max(1, Math.floor(value));
+}
+
+function normalizeApprovedQuantity(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(value));
 }
 
 function calculateDiscountPercent(originalUnitPrice: string | null, unitPrice: string) {
@@ -312,14 +328,18 @@ async function createLocalWholesaleOrder(
       productId: item.productId,
       productName: item.productName?.trim() || null,
       productCode: item.productCode?.trim() || null,
+      submittedQuantity: quantity,
       quantity,
       salesUomName: item.salesUomName?.trim() || item.standardUomName?.trim() || null,
       standardUomName: item.standardUomName?.trim() || null,
       salesUomStandardQuantity: parseDecimalText(item.salesUomStandardQuantity, "1"),
       salesUomQuantity: parseDecimalText(item.salesUomQuantity, "1"),
+      submittedOriginalUnitPrice: originalUnitPrice,
       originalUnitPrice,
+      submittedDiscountPercent: discountPercent,
       unitPrice,
       discountPercent,
+      submittedLineTotal: lineTotal,
       lineTotal,
     };
   });
@@ -354,14 +374,18 @@ async function createLocalWholesaleOrder(
           productId: item.productId,
           productName: item.productName,
           productCode: item.productCode,
+          submittedQuantity: item.submittedQuantity,
           quantity: item.quantity,
           salesUomName: item.salesUomName,
           standardUomName: item.standardUomName,
           salesUomStandardQuantity: item.salesUomStandardQuantity,
           salesUomQuantity: item.salesUomQuantity,
+          submittedOriginalUnitPrice: item.submittedOriginalUnitPrice,
           originalUnitPrice: item.originalUnitPrice,
+          submittedDiscountPercent: item.submittedDiscountPercent,
           unitPrice: item.unitPrice,
           discountPercent: item.discountPercent,
+          submittedLineTotal: item.submittedLineTotal,
           lineTotal: item.lineTotal,
         })),
       },
@@ -528,7 +552,7 @@ export async function approveWholesaleOrder(
       throw new Error("Missing line update");
     }
 
-    const quantity = normalizeQuantity(input.quantity);
+    const quantity = normalizeApprovedQuantity(input.quantity);
     const originalUnitPrice = parseOptionalMoney(input.originalUnitPrice) ?? line.originalUnitPrice?.toString() ?? null;
     const discountPercent = parsePercent(input.discountPercent) ?? "0.00";
     const unitPrice = calculateDiscountedUnitPrice(originalUnitPrice, discountPercent);
@@ -551,7 +575,13 @@ export async function approveWholesaleOrder(
     }))
     .filter((adjustment) => adjustment.label && toMoneyNumber(adjustment.amount) !== 0);
 
-  const subtotalAmount = normalizedLines
+  const orderableLines = normalizedLines.filter((line) => line.quantity > 0);
+
+  if (!orderableLines.length) {
+    throw new Error("At least one order line must have quantity above 0");
+  }
+
+  const subtotalAmount = orderableLines
     .reduce((total, line) => total + toMoneyNumber(line.lineTotal), 0)
     .toFixed(2);
   const normalizedFreightAmount = parseMoney(freightAmount ?? "0");
@@ -587,7 +617,7 @@ export async function approveWholesaleOrder(
     tax1Name: normalizedTaxName ?? undefined,
     tax1Rate: normalizedTaxRate ?? undefined,
     tax1OnShipping: false,
-    lines: normalizedLines.map((line) => ({
+    lines: orderableLines.map((line) => ({
       salesOrderLineId: randomUUID(),
       productId: persistedLines.find((existingLine) => existingLine.id === line.id)?.productId ?? "",
       unitPrice: line.originalUnitPrice ?? line.unitPrice,

@@ -20,13 +20,17 @@ export type AccountOrder = {
   }>;
   lines: Array<{
     id: string;
+    submittedQuantity: number;
     quantity: number;
     productName: string | null;
     productCode: string | null;
     salesUomName: string | null;
     unitPrice: string;
+    submittedOriginalUnitPrice: string | null;
     originalUnitPrice: string | null;
+    submittedDiscountPercent: string | null;
     discountPercent: string | null;
+    submittedLineTotal: string;
     lineTotal: string;
   }>;
 };
@@ -44,6 +48,15 @@ function formatDiscount(value: string | null) {
 
 function formatQuantity(quantity: number, uomName: string | null) {
   return `${quantity} ${uomName || "ea."}`;
+}
+
+function hasLineChanged(line: AccountOrder["lines"][number]) {
+  return (
+    line.quantity !== line.submittedQuantity ||
+    (line.originalUnitPrice || "") !== (line.submittedOriginalUnitPrice || "") ||
+    (line.discountPercent || "0") !== (line.submittedDiscountPercent || "0") ||
+    line.lineTotal !== line.submittedLineTotal
+  );
 }
 
 function formatProfileDate(value: string) {
@@ -116,15 +129,67 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                   </thead>
                   <tbody>
                     {order.lines.map((line) => (
-                      <tr key={line.id}>
+                      <tr
+                        className={line.quantity === 0 ? "profile-order-line-removed" : hasLineChanged(line) ? "profile-order-line-changed" : undefined}
+                        key={line.id}
+                      >
                         <td>
                           <strong>{line.productName || line.productCode || "Product"}</strong>
                           <span>{line.productCode || "Submitted item"}</span>
+                          {line.quantity === 0 ? (
+                            <span className="profile-order-line-change-note">Removed by sales rep: out of stock</span>
+                          ) : hasLineChanged(line) ? (
+                            <span className="profile-order-line-change-note">Updated by sales rep</span>
+                          ) : null}
                         </td>
-                        <td>{formatQuantity(line.quantity, line.salesUomName)}</td>
-                        <td>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</td>
-                        <td>{formatDiscount(line.discountPercent)}</td>
-                        <td>{formatCurrency(line.lineTotal)}</td>
+                        <td>
+                          {hasLineChanged(line) ? (
+                            <div className="profile-order-value-diff">
+                              <span className="profile-order-value-previous">
+                                {formatQuantity(line.submittedQuantity, line.salesUomName)}
+                              </span>
+                              <strong>{formatQuantity(line.quantity, line.salesUomName)}</strong>
+                            </div>
+                          ) : (
+                            formatQuantity(line.quantity, line.salesUomName)
+                          )}
+                        </td>
+                        <td>
+                          {hasLineChanged(line) ? (
+                            <div className="profile-order-value-diff">
+                              <span className="profile-order-value-previous">
+                                {formatCurrency(line.submittedOriginalUnitPrice || line.originalUnitPrice || line.unitPrice)}
+                              </span>
+                              <strong>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</strong>
+                            </div>
+                          ) : (
+                            formatCurrency(line.originalUnitPrice || line.unitPrice)
+                          )}
+                        </td>
+                        <td>
+                          {hasLineChanged(line) ? (
+                            <div className="profile-order-value-diff">
+                              <span className="profile-order-value-previous">
+                                {formatDiscount(line.submittedDiscountPercent)}
+                              </span>
+                              <strong>{formatDiscount(line.discountPercent)}</strong>
+                            </div>
+                          ) : (
+                            formatDiscount(line.discountPercent)
+                          )}
+                        </td>
+                        <td>
+                          {hasLineChanged(line) ? (
+                            <div className="profile-order-value-diff">
+                              <span className="profile-order-value-previous">
+                                {formatCurrency(line.submittedLineTotal)}
+                              </span>
+                              <strong>{formatCurrency(line.lineTotal)}</strong>
+                            </div>
+                          ) : (
+                            formatCurrency(line.lineTotal)
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

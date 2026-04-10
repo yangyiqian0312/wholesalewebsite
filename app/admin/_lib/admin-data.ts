@@ -70,14 +70,18 @@ export type AdminOrderLine = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
   standardUomName: string | null;
   salesUomStandardQuantity: string | null;
   salesUomQuantity: string | null;
+  submittedOriginalUnitPrice: string | null;
   originalUnitPrice: string | null;
+  submittedDiscountPercent: string | null;
   unitPrice: string;
   discountPercent: string | null;
+  submittedLineTotal: string;
   lineTotal: string;
   createdAt: string;
 };

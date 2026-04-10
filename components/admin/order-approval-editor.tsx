@@ -7,12 +7,16 @@ type OrderLineInput = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
   standardUomName: string | null;
+  submittedOriginalUnitPrice: string | null;
   originalUnitPrice: string | null;
+  submittedDiscountPercent: string | null;
   unitPrice: string;
   discountPercent: string | null;
+  submittedLineTotal: string;
   lineTotal: string;
 };
 
@@ -182,12 +186,12 @@ export function OrderApprovalEditor({
                     <div className="admin-order-stepper">
                       <button
                         className="admin-order-stepper-button"
-                        disabled={disabled || line.quantity <= 1}
+                        disabled={disabled || line.quantity <= 0}
                         onClick={() =>
                           setLines((current) =>
                             current.map((entry) =>
                               entry.id === line.id
-                                ? { ...entry, quantity: Math.max(1, entry.quantity - 1) }
+                                ? { ...entry, quantity: Math.max(0, entry.quantity - 1) }
                                 : entry,
                             ),
                           )
@@ -199,13 +203,13 @@ export function OrderApprovalEditor({
                       <input
                         className="admin-order-stepper-input"
                         disabled={disabled}
-                        min={1}
+                        min={0}
                         name={`quantity:${line.id}`}
                         onChange={(event) =>
                           setLines((current) =>
                             current.map((entry) =>
                               entry.id === line.id
-                                ? { ...entry, quantity: Math.max(1, Number(event.target.value) || 1) }
+                                ? { ...entry, quantity: Math.max(0, Number(event.target.value) || 0) }
                                 : entry,
                             ),
                           )
