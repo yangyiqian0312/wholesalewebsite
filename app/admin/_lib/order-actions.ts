@@ -37,6 +37,20 @@ export async function approveOrderAction(formData: FormData) {
     unitPrice: String(formData.get(`unitPrice:${lineId}`) ?? "").trim(),
   }));
 
+  const adjustmentIds = formData
+    .getAll("adjustmentId")
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  const adjustments = adjustmentIds
+    .map((adjustmentId) => ({
+      label: String(formData.get(`adjustmentLabel:${adjustmentId}`) ?? "").trim(),
+      amount: String(formData.get(`adjustmentAmount:${adjustmentId}`) ?? "").trim(),
+    }))
+    .filter((adjustment) => adjustment.label && adjustment.amount);
+
+  const salesRepNote = String(formData.get("salesRepNote") ?? "").trim();
+
   const response = await fetch(`${getBackendBaseUrl()}/api/admin/orders/${orderId}/approve`, {
     method: "PATCH",
     headers: {
@@ -47,7 +61,9 @@ export async function approveOrderAction(formData: FormData) {
     body: JSON.stringify({
       reviewedByEmail: user.email,
       frontendBaseUrl: getFrontendBaseUrl(),
+      salesRepNote,
       lines,
+      adjustments,
     }),
   });
 

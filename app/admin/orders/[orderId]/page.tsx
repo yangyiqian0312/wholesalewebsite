@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
 import { approveOrderAction } from "../../_lib/order-actions";
+import { OrderApprovalFields } from "../../../../components/admin/order-approval-fields";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 function DetailBlock({
@@ -17,6 +18,17 @@ function DetailBlock({
       <strong>{value}</strong>
     </div>
   );
+}
+
+function formatCurrency(value: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(Number(value));
+}
+
+function formatDiscount(value: string | null) {
+  return value ? `${value}%` : "-";
 }
 
 export default async function AdminOrderDetailPage({
@@ -86,7 +98,11 @@ export default async function AdminOrderDetailPage({
         </article>
         <article className="panel admin-summary-card">
           <span>Subtotal</span>
-          <strong>${Number(order.subtotalAmount).toFixed(2)}</strong>
+          <strong>{formatCurrency(order.subtotalAmount)}</strong>
+        </article>
+        <article className="panel admin-summary-card">
+          <span>Total</span>
+          <strong>{formatCurrency(order.totalAmount)}</strong>
         </article>
       </section>
 
@@ -119,7 +135,7 @@ export default async function AdminOrderDetailPage({
         <div className="table-panel-header">
           <div>
             <h2>Line Items</h2>
-            <p className="panel-subtitle">Review submitted quantities and pricing before approving this order</p>
+            <p className="panel-subtitle">Review submitted quantities, pricing, notes, and additional charges before approving this order</p>
           </div>
           {!isApproved ? (
             <button className="primary-button" type="submit">
@@ -133,10 +149,10 @@ export default async function AdminOrderDetailPage({
             <thead>
               <tr>
                 <th>Product</th>
-                <th>Code</th>
                 <th>Quantity</th>
                 <th>Unit Price</th>
-                <th>Total</th>
+                <th>Discount</th>
+                <th>Subtotal</th>
               </tr>
             </thead>
             <tbody>
@@ -144,9 +160,9 @@ export default async function AdminOrderDetailPage({
                 <tr key={line.id}>
                   <td>
                     <input name="lineId" type="hidden" value={line.id} />
-                    {line.productName || line.productId}
+                    <strong>{line.productName || line.productId}</strong>
+                    <span>{line.productCode || line.productId}</span>
                   </td>
-                  <td>{line.productCode || line.productId}</td>
                   <td>
                     <input
                       className="admin-order-line-input"
@@ -167,11 +183,39 @@ export default async function AdminOrderDetailPage({
                       type="text"
                     />
                   </td>
-                  <td>${Number(line.lineTotal).toFixed(2)}</td>
+                  <td>{formatDiscount(line.discountPercent)}</td>
+                  <td>{formatCurrency(line.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        <OrderApprovalFields
+          adjustments={order.adjustments.map((adjustment) => ({
+            id: adjustment.id,
+            label: adjustment.label,
+            amount: Number(adjustment.amount).toFixed(2),
+          }))}
+          disabled={isApproved}
+          salesRepNote={order.salesRepNote}
+        />
+
+        <div className="profile-order-summary admin-order-summary">
+          <div className="profile-order-summary-row">
+            <span>Subtotal</span>
+            <strong>{formatCurrency(order.subtotalAmount)}</strong>
+          </div>
+          {order.adjustments.map((adjustment) => (
+            <div className="profile-order-summary-row" key={adjustment.id}>
+              <span>{adjustment.label}</span>
+              <strong>{formatCurrency(adjustment.amount)}</strong>
+            </div>
+          ))}
+          <div className="profile-order-summary-row profile-order-summary-total">
+            <span>Total</span>
+            <strong>{formatCurrency(order.totalAmount)}</strong>
+          </div>
         </div>
       </form>
     </div>

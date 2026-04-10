@@ -7,6 +7,7 @@ export type CartItem = {
   imageLabel: string;
   productPath?: string;
   wholesale: string;
+  originalPrice?: string;
   quantity: number;
 };
 

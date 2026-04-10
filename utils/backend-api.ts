@@ -1,5 +1,5 @@
 const backendBaseUrl = process.env.CATALOG_BACKEND_URL ?? "http://127.0.0.1:4000";
-const frontendBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://wholesale.crossingcards.com";
+const frontendBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://wholesale.crossingtcg.com";
 
 export function getBackendBaseUrl() {
   return backendBaseUrl;

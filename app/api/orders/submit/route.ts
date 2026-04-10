@@ -7,6 +7,7 @@ type SubmitOrderItem = {
   productId: string;
   quantity: number;
   unitPrice: string;
+  originalUnitPrice?: string;
   productName?: string;
   productCode?: string;
 };
@@ -26,6 +27,7 @@ function isValidSubmitOrderItem(value: unknown): value is SubmitOrderItem {
     item.quantity > 0 &&
     typeof item.unitPrice === "string" &&
     item.unitPrice.trim().length > 0 &&
+    (item.originalUnitPrice === undefined || typeof item.originalUnitPrice === "string") &&
     (item.productName === undefined || typeof item.productName === "string") &&
     (item.productCode === undefined || typeof item.productCode === "string")
   );

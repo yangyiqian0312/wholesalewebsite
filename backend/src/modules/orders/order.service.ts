@@ -8,6 +8,7 @@ type SubmitOrderItemInput = {
   productId: string;
   quantity: number;
   unitPrice: string;
+  originalUnitPrice?: string;
   productName?: string;
   productCode?: string;
 };
@@ -16,6 +17,11 @@ type ApproveOrderLineInput = {
   id: string;
   quantity: number;
   unitPrice: string;
+};
+
+type ApproveOrderAdjustmentInput = {
+  label: string;
+  amount: string;
 };
 
 type InflowCustomer = {
@@ -51,8 +57,17 @@ type WholesaleOrderLineRecord = {
   productName: string | null;
   productCode: string | null;
   quantity: number;
+  originalUnitPrice: string | null;
   unitPrice: string;
+  discountPercent: string | null;
   lineTotal: string;
+  createdAt: Date;
+};
+
+type WholesaleOrderAdjustmentRecord = {
+  id: string;
+  label: string;
+  amount: string;
   createdAt: Date;
 };
 
@@ -69,10 +84,13 @@ type WholesaleOrderRecord = {
   inflowOrderNumber: string | null;
   source: string;
   subtotalAmount: string;
+  totalAmount: string;
+  salesRepNote: string | null;
   submittedAt: Date;
   createdAt: Date;
   updatedAt: Date;
   lines: WholesaleOrderLineRecord[];
+  adjustments: WholesaleOrderAdjustmentRecord[];
 };
 
 function toMoneyNumber(value: string) {
@@ -90,12 +108,36 @@ function parseMoney(value: string) {
   return numericValue.toFixed(2);
 }
 
+function parseOptionalMoney(value?: string | null) {
+  if (!value?.trim()) {
+    return null;
+  }
+
+  const normalizedValue = parseMoney(value);
+  return toMoneyNumber(normalizedValue) > 0 ? normalizedValue : null;
+}
+
 function normalizeQuantity(value: number) {
   if (!Number.isFinite(value)) {
     return 1;
   }
 
   return Math.max(1, Math.floor(value));
+}
+
+function calculateDiscountPercent(originalUnitPrice: string | null, unitPrice: string) {
+  if (!originalUnitPrice) {
+    return null;
+  }
+
+  const original = toMoneyNumber(originalUnitPrice);
+  const current = toMoneyNumber(unitPrice);
+
+  if (original <= 0 || current <= 0 || current >= original) {
+    return null;
+  }
+
+  return String(Math.round(((original - current) / original) * 100));
 }
 
 async function findInflowCustomerByEmail(email: string) {
@@ -189,6 +231,8 @@ async function createLocalWholesaleOrder(
   const normalizedItems = items.map((item) => {
     const quantity = normalizeQuantity(item.quantity);
     const unitPrice = parseMoney(item.unitPrice);
+    const originalUnitPrice = parseOptionalMoney(item.originalUnitPrice);
+    const discountPercent = calculateDiscountPercent(originalUnitPrice, unitPrice);
     const lineTotal = (toMoneyNumber(unitPrice) * quantity).toFixed(2);
 
     return {
@@ -196,7 +240,9 @@ async function createLocalWholesaleOrder(
       productName: item.productName?.trim() || null,
       productCode: item.productCode?.trim() || null,
       quantity,
+      originalUnitPrice,
       unitPrice,
+      discountPercent,
       lineTotal,
     };
   });
@@ -204,6 +250,7 @@ async function createLocalWholesaleOrder(
   const subtotalAmount = normalizedItems
     .reduce((total, item) => total + toMoneyNumber(item.lineTotal), 0)
     .toFixed(2);
+  const totalAmount = subtotalAmount;
 
   const createdOrder = await prisma.wholesaleOrder.create({
     data: {
@@ -218,6 +265,8 @@ async function createLocalWholesaleOrder(
       inflowOrderNumber: null,
       source: "Crossing Web Store",
       subtotalAmount,
+      totalAmount,
+      salesRepNote: null,
       submittedAt: new Date(),
       lines: {
         create: normalizedItems.map((item) => ({
@@ -225,12 +274,17 @@ async function createLocalWholesaleOrder(
           productName: item.productName,
           productCode: item.productCode,
           quantity: item.quantity,
+          originalUnitPrice: item.originalUnitPrice,
           unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent,
           lineTotal: item.lineTotal,
         })),
       },
     },
     include: {
+      adjustments: {
+        orderBy: [{ createdAt: "asc" }],
+      },
       lines: {
         orderBy: [{ createdAt: "asc" }],
       },
@@ -262,6 +316,9 @@ export async function fetchWholesaleOrdersByFilter(filters?: {
         : {}),
     },
     include: {
+      adjustments: {
+        orderBy: [{ createdAt: "asc" }],
+      },
       lines: {
         orderBy: [{ createdAt: "asc" }],
       },
@@ -278,6 +335,9 @@ export async function fetchWholesaleOrderById(orderId: string) {
       id: orderId,
     },
     include: {
+      adjustments: {
+        orderBy: [{ createdAt: "asc" }],
+      },
       lines: {
         orderBy: [{ createdAt: "asc" }],
       },
@@ -313,6 +373,8 @@ export async function approveWholesaleOrder(
   orderId: string,
   reviewerEmail: string,
   lines: readonly ApproveOrderLineInput[],
+  adjustments: readonly ApproveOrderAdjustmentInput[],
+  salesRepNote?: string,
 ) {
   const normalizedReviewerEmail = reviewerEmail.trim().toLowerCase();
 
@@ -331,6 +393,9 @@ export async function approveWholesaleOrder(
       id: orderId,
     },
     include: {
+      adjustments: {
+        orderBy: [{ createdAt: "asc" }],
+      },
       lines: {
         orderBy: [{ createdAt: "asc" }],
       },
@@ -375,19 +440,34 @@ export async function approveWholesaleOrder(
 
     const quantity = normalizeQuantity(input.quantity);
     const unitPrice = parseMoney(input.unitPrice);
+    const originalUnitPrice = line.originalUnitPrice?.toString() ?? null;
+    const discountPercent = calculateDiscountPercent(originalUnitPrice, unitPrice);
     const lineTotal = (toMoneyNumber(unitPrice) * quantity).toFixed(2);
 
     return {
       id: line.id,
       quantity,
+      originalUnitPrice,
       unitPrice,
+      discountPercent,
       lineTotal,
     };
   });
 
+  const normalizedAdjustments = adjustments
+    .map((adjustment) => ({
+      label: adjustment.label.trim(),
+      amount: parseMoney(adjustment.amount),
+    }))
+    .filter((adjustment) => adjustment.label && toMoneyNumber(adjustment.amount) !== 0);
+
   const subtotalAmount = normalizedLines
     .reduce((total, line) => total + toMoneyNumber(line.lineTotal), 0)
     .toFixed(2);
+  const totalAmount = (
+    toMoneyNumber(subtotalAmount) +
+    normalizedAdjustments.reduce((total, adjustment) => total + toMoneyNumber(adjustment.amount), 0)
+  ).toFixed(2);
 
   const inflowCustomer = await upsertInflowCustomer(existingOrder.application);
   const salesOrderPayload = {
@@ -425,11 +505,19 @@ export async function approveWholesaleOrder(
         },
         data: {
           quantity: line.quantity,
+          originalUnitPrice: line.originalUnitPrice,
           unitPrice: line.unitPrice,
+          discountPercent: line.discountPercent,
           lineTotal: line.lineTotal,
         },
       });
     }
+
+    await tx.wholesaleOrderAdjustment.deleteMany({
+      where: {
+        orderId,
+      },
+    });
 
     return tx.wholesaleOrder.update({
       where: {
@@ -442,8 +530,19 @@ export async function approveWholesaleOrder(
         inflowSalesOrderId: salesOrder.salesOrderId ?? existingOrder.inflowSalesOrderId,
         inflowOrderNumber: salesOrder.orderNumber ?? existingOrder.inflowOrderNumber,
         subtotalAmount,
+        totalAmount,
+        salesRepNote: salesRepNote?.trim() || null,
+        adjustments: {
+          create: normalizedAdjustments.map((adjustment) => ({
+            label: adjustment.label,
+            amount: adjustment.amount,
+          })),
+        },
       },
       include: {
+        adjustments: {
+          orderBy: [{ createdAt: "asc" }],
+        },
         lines: {
           orderBy: [{ createdAt: "asc" }],
         },

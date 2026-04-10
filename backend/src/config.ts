@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { z } from "zod";
 
-const PUBLIC_APP_URL = "https://wholesale.crossingcards.com";
+const PUBLIC_APP_URL = "https://wholesale.crossingtcg.com";
 
 function isLocalhostUrl(value: string) {
   try {

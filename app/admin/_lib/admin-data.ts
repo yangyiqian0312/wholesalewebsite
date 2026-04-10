@@ -71,8 +71,17 @@ export type AdminOrderLine = {
   productName: string | null;
   productCode: string | null;
   quantity: number;
+  originalUnitPrice: string | null;
   unitPrice: string;
+  discountPercent: string | null;
   lineTotal: string;
+  createdAt: string;
+};
+
+export type AdminOrderAdjustment = {
+  id: string;
+  label: string;
+  amount: string;
   createdAt: string;
 };
 
@@ -89,10 +98,13 @@ export type AdminOrder = {
   inflowOrderNumber: string | null;
   source: string;
   subtotalAmount: string;
+  totalAmount: string;
+  salesRepNote: string | null;
   submittedAt: string;
   createdAt: string;
   updatedAt: string;
   lines: AdminOrderLine[];
+  adjustments: AdminOrderAdjustment[];
 };
 
 type AdminListingsResponse = {

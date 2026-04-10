@@ -185,6 +185,7 @@ function ProductRow({
             imageLabel: product.imageLabel,
             imageUrl: product.imageUrl,
             name: product.name,
+            originalPrice: product.originalPrice !== "N/A" ? product.originalPrice : undefined,
             productPath: product.productPath,
             sku: product.sku,
             upc: product.upc,

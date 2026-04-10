@@ -50,6 +50,7 @@ export function CartPageClient() {
             productName: item.name,
             productCode: item.sku || item.code,
             quantity: item.quantity,
+            originalUnitPrice: item.originalPrice,
             unitPrice: item.wholesale,
           })),
         }),

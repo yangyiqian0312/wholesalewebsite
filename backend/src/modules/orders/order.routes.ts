@@ -17,6 +17,7 @@ const submitOrderSchema = z.object({
       productId: z.string().trim().min(1),
       quantity: z.coerce.number().positive(),
       unitPrice: z.string().trim().min(1),
+      originalUnitPrice: z.string().trim().optional(),
       productName: z.string().trim().optional(),
       productCode: z.string().trim().optional(),
     }),
@@ -26,6 +27,7 @@ const submitOrderSchema = z.object({
 const approveOrderSchema = z.object({
   reviewedByEmail: z.string().trim().email(),
   frontendBaseUrl: z.string().trim().url().optional(),
+  salesRepNote: z.string().trim().max(2000).optional(),
   lines: z.array(
     z.object({
       id: z.string().trim().min(1),
@@ -33,6 +35,12 @@ const approveOrderSchema = z.object({
       unitPrice: z.string().trim().min(1),
     }),
   ).min(1),
+  adjustments: z.array(
+    z.object({
+      label: z.string().trim().min(1),
+      amount: z.string().trim().min(1),
+    }),
+  ).default([]),
 });
 
 export async function registerOrderRoutes(app: FastifyInstance) {
@@ -175,6 +183,8 @@ export async function registerOrderRoutes(app: FastifyInstance) {
         orderId.data,
         parsedBody.data.reviewedByEmail,
         parsedBody.data.lines,
+        parsedBody.data.adjustments,
+        parsedBody.data.salesRepNote,
       );
 
       let emailNotification:
