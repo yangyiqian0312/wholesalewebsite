@@ -8,6 +8,10 @@ export type AccountOrder = {
   subtotalAmount: string;
   totalAmount: string;
   salesRepNote: string | null;
+  freightAmount: string;
+  taxName: string | null;
+  taxRate: string | null;
+  taxAmount: string;
   submittedAt: string;
   adjustments: Array<{
     id: string;
@@ -19,7 +23,9 @@ export type AccountOrder = {
     quantity: number;
     productName: string | null;
     productCode: string | null;
+    salesUomName: string | null;
     unitPrice: string;
+    originalUnitPrice: string | null;
     discountPercent: string | null;
     lineTotal: string;
   }>;
@@ -33,7 +39,11 @@ function formatCurrency(value: string) {
 }
 
 function formatDiscount(value: string | null) {
-  return value ? `${value}%` : "-";
+  return value && Number(value) > 0 ? `${Number(value).toFixed(2)}%` : "-";
+}
+
+function formatQuantity(quantity: number, uomName: string | null) {
+  return `${quantity} ${uomName || "ea."}`;
 }
 
 function formatProfileDate(value: string) {
@@ -89,8 +99,8 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                         <strong>{line.productName || line.productCode || "Product"}</strong>
                         <span>{line.productCode || "Submitted item"}</span>
                       </td>
-                      <td>{line.quantity}</td>
-                      <td>{formatCurrency(line.unitPrice)}</td>
+                      <td>{formatQuantity(line.quantity, line.salesUomName)}</td>
+                      <td>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</td>
                       <td>{formatDiscount(line.discountPercent)}</td>
                       <td>{formatCurrency(line.lineTotal)}</td>
                     </tr>
@@ -104,6 +114,18 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                 <span>Subtotal</span>
                 <strong>{formatCurrency(order.subtotalAmount)}</strong>
               </div>
+              {Number(order.freightAmount) > 0 ? (
+                <div className="profile-order-summary-row">
+                  <span>Freight</span>
+                  <strong>{formatCurrency(order.freightAmount)}</strong>
+                </div>
+              ) : null}
+              {Number(order.taxAmount) > 0 ? (
+                <div className="profile-order-summary-row">
+                  <span>{order.taxName ? `${order.taxName} ${Number(order.taxRate || "0").toFixed(2)}%` : "Tax"}</span>
+                  <strong>{formatCurrency(order.taxAmount)}</strong>
+                </div>
+              ) : null}
               {order.adjustments.map((adjustment) => (
                 <div className="profile-order-summary-row" key={adjustment.id}>
                   <span>{adjustment.label}</span>

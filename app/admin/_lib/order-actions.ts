@@ -34,7 +34,8 @@ export async function approveOrderAction(formData: FormData) {
   const lines = lineIds.map((lineId) => ({
     id: lineId,
     quantity: Number(String(formData.get(`quantity:${lineId}`) ?? "1").trim()),
-    unitPrice: String(formData.get(`unitPrice:${lineId}`) ?? "").trim(),
+    originalUnitPrice: String(formData.get(`originalUnitPrice:${lineId}`) ?? "").trim(),
+    discountPercent: String(formData.get(`discountPercent:${lineId}`) ?? "").trim(),
   }));
 
   const adjustmentIds = formData
@@ -50,6 +51,9 @@ export async function approveOrderAction(formData: FormData) {
     .filter((adjustment) => adjustment.label && adjustment.amount);
 
   const salesRepNote = String(formData.get("salesRepNote") ?? "").trim();
+  const freightAmount = String(formData.get("freightAmount") ?? "").trim();
+  const taxName = String(formData.get("taxName") ?? "").trim();
+  const taxRate = String(formData.get("taxRate") ?? "").trim();
 
   const response = await fetch(`${getBackendBaseUrl()}/api/admin/orders/${orderId}/approve`, {
     method: "PATCH",
@@ -62,6 +66,9 @@ export async function approveOrderAction(formData: FormData) {
       reviewedByEmail: user.email,
       frontendBaseUrl: getFrontendBaseUrl(),
       salesRepNote,
+      freightAmount,
+      taxName,
+      taxRate,
       lines,
       adjustments,
     }),

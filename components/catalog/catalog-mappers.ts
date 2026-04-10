@@ -12,6 +12,13 @@ type InflowProduct = {
   categoryId?: string;
   description?: string;
   standardUomName?: string;
+  salesUom?: {
+    name?: string;
+    conversionRatio?: {
+      standardQuantity?: string;
+      uomQuantity?: string;
+    };
+  };
   lastModifiedDateTime?: string;
   isActive?: boolean;
   totalQuantityOnHand?: string;
@@ -129,6 +136,10 @@ export function mapInflowProductToCatalogRow(product: InflowProduct): CatalogPro
     description: typeof product.description === "string" ? product.description : undefined,
     originalPrice: formatMoney(product.marketPrice),
     wholesale: formatMoney(product.defaultPrice?.unitPrice),
+    salesUomName: product.salesUom?.name,
+    standardUomName: product.standardUomName,
+    salesUomStandardQuantity: product.salesUom?.conversionRatio?.standardQuantity,
+    salesUomQuantity: product.salesUom?.conversionRatio?.uomQuantity,
     wholesaleNote: "",
     releaseDate: formatDate(product.lastModifiedDateTime),
     quantity: "",

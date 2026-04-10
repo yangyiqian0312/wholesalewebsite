@@ -71,6 +71,10 @@ export type AdminOrderLine = {
   productName: string | null;
   productCode: string | null;
   quantity: number;
+  salesUomName: string | null;
+  standardUomName: string | null;
+  salesUomStandardQuantity: string | null;
+  salesUomQuantity: string | null;
   originalUnitPrice: string | null;
   unitPrice: string;
   discountPercent: string | null;
@@ -99,6 +103,10 @@ export type AdminOrder = {
   source: string;
   subtotalAmount: string;
   totalAmount: string;
+  freightAmount: string;
+  taxName: string | null;
+  taxRate: string | null;
+  taxAmount: string;
   salesRepNote: string | null;
   submittedAt: string;
   createdAt: string;

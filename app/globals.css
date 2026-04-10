@@ -4427,6 +4427,12 @@ select {
   gap: 12px;
 }
 
+.admin-order-financial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .admin-order-adjustments-head {
   display: flex;
   justify-content: space-between;
@@ -4444,6 +4450,16 @@ select {
   grid-template-columns: minmax(0, 1fr) 140px auto;
   gap: 10px;
   align-items: center;
+}
+
+.admin-order-quantity-cell {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-order-quantity-cell span {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .admin-order-summary {
@@ -4487,6 +4503,10 @@ select {
   }
 
   .admin-order-adjustment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-order-financial-grid {
     grid-template-columns: 1fr;
   }
 

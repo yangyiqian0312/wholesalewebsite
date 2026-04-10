@@ -8,6 +8,10 @@ export type CartItem = {
   productPath?: string;
   wholesale: string;
   originalPrice?: string;
+  salesUomName?: string;
+  standardUomName?: string;
+  salesUomStandardQuantity?: string;
+  salesUomQuantity?: string;
   quantity: number;
 };
 

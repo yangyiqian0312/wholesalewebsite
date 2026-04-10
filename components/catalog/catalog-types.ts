@@ -11,6 +11,10 @@ export type CatalogProductRow = {
   description?: string;
   originalPrice: string;
   wholesale: string;
+  salesUomName?: string;
+  standardUomName?: string;
+  salesUomStandardQuantity?: string;
+  salesUomQuantity?: string;
   wholesaleNote: string;
   releaseDate: string;
   quantity: string;

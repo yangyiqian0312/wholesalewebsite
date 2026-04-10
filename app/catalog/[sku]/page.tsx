@@ -121,7 +121,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                     name: product.name,
                     originalPrice: product.originalPrice !== "N/A" ? product.originalPrice : undefined,
                     productPath: product.productPath,
+                    salesUomName: product.salesUomName,
+                    salesUomQuantity: product.salesUomQuantity,
+                    salesUomStandardQuantity: product.salesUomStandardQuantity,
                     sku: product.sku,
+                    standardUomName: product.standardUomName,
                     upc: product.upc,
                     wholesale: product.wholesale,
                   }}

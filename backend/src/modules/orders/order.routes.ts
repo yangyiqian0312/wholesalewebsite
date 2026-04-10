@@ -18,8 +18,12 @@ const submitOrderSchema = z.object({
       quantity: z.coerce.number().positive(),
       unitPrice: z.string().trim().min(1),
       originalUnitPrice: z.string().trim().optional(),
+      salesUomName: z.string().trim().optional(),
+      salesUomQuantity: z.string().trim().optional(),
+      salesUomStandardQuantity: z.string().trim().optional(),
       productName: z.string().trim().optional(),
       productCode: z.string().trim().optional(),
+      standardUomName: z.string().trim().optional(),
     }),
   ).min(1),
 });
@@ -28,11 +32,15 @@ const approveOrderSchema = z.object({
   reviewedByEmail: z.string().trim().email(),
   frontendBaseUrl: z.string().trim().url().optional(),
   salesRepNote: z.string().trim().max(2000).optional(),
+  freightAmount: z.string().trim().optional(),
+  taxName: z.string().trim().optional(),
+  taxRate: z.string().trim().optional(),
   lines: z.array(
     z.object({
       id: z.string().trim().min(1),
       quantity: z.coerce.number().positive(),
-      unitPrice: z.string().trim().min(1),
+      originalUnitPrice: z.string().trim().min(1),
+      discountPercent: z.string().trim().optional(),
     }),
   ).min(1),
   adjustments: z.array(
@@ -185,6 +193,9 @@ export async function registerOrderRoutes(app: FastifyInstance) {
         parsedBody.data.lines,
         parsedBody.data.adjustments,
         parsedBody.data.salesRepNote,
+        parsedBody.data.freightAmount,
+        parsedBody.data.taxName,
+        parsedBody.data.taxRate,
       );
 
       let emailNotification:

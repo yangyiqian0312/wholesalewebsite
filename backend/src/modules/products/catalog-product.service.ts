@@ -17,6 +17,14 @@ type FetchCatalogProductsParams = {
 
 type RawCatalogProductPayload = {
   description?: string;
+  salesUom?: {
+    name?: string;
+    conversionRatio?: {
+      standardQuantity?: string;
+      uomQuantity?: string;
+    };
+  };
+  standardUomName?: string;
   imageSmallUrl?: string;
   defaultImage?: {
     mediumUrl?: string;
@@ -36,6 +44,18 @@ function extractCatalogPayloadFields(rawPayload: unknown): RawCatalogProductPayl
 
   return {
     description: typeof payload.description === "string" ? payload.description : undefined,
+    salesUom: payload.salesUom
+      ? {
+          name: payload.salesUom.name,
+          conversionRatio: payload.salesUom.conversionRatio
+            ? {
+                standardQuantity: payload.salesUom.conversionRatio.standardQuantity,
+                uomQuantity: payload.salesUom.conversionRatio.uomQuantity,
+              }
+            : undefined,
+        }
+      : undefined,
+    standardUomName: typeof payload.standardUomName === "string" ? payload.standardUomName : undefined,
     imageSmallUrl: payload.imageSmallUrl,
     defaultImage: payload.defaultImage
       ? {

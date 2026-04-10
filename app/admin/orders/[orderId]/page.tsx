@@ -28,7 +28,11 @@ function formatCurrency(value: string) {
 }
 
 function formatDiscount(value: string | null) {
-  return value ? `${value}%` : "-";
+  return value && Number(value) > 0 ? `${Number(value).toFixed(2)}%` : "-";
+}
+
+function formatQuantity(quantity: number, uomName: string | null) {
+  return `${quantity} ${uomName || "ea."}`;
 }
 
 export default async function AdminOrderDetailPage({
@@ -101,6 +105,10 @@ export default async function AdminOrderDetailPage({
           <strong>{formatCurrency(order.subtotalAmount)}</strong>
         </article>
         <article className="panel admin-summary-card">
+          <span>Freight</span>
+          <strong>{formatCurrency(order.freightAmount)}</strong>
+        </article>
+        <article className="panel admin-summary-card">
           <span>Total</span>
           <strong>{formatCurrency(order.totalAmount)}</strong>
         </article>
@@ -164,6 +172,7 @@ export default async function AdminOrderDetailPage({
                     <span>{line.productCode || line.productId}</span>
                   </td>
                   <td>
+                    <div className="admin-order-quantity-cell">
                     <input
                       className="admin-order-line-input"
                       defaultValue={String(line.quantity)}
@@ -172,18 +181,29 @@ export default async function AdminOrderDetailPage({
                       name={`quantity:${line.id}`}
                       type="number"
                     />
+                      <span>{line.salesUomName || line.standardUomName || "ea."}</span>
+                    </div>
                   </td>
                   <td>
                     <input
                       className="admin-order-line-input"
-                      defaultValue={Number(line.unitPrice).toFixed(2)}
+                      defaultValue={Number(line.originalUnitPrice || line.unitPrice).toFixed(2)}
                       disabled={isApproved}
                       inputMode="decimal"
-                      name={`unitPrice:${line.id}`}
+                      name={`originalUnitPrice:${line.id}`}
                       type="text"
                     />
                   </td>
-                  <td>{formatDiscount(line.discountPercent)}</td>
+                  <td>
+                    <input
+                      className="admin-order-line-input"
+                      defaultValue={line.discountPercent ? Number(line.discountPercent).toFixed(2) : "0.00"}
+                      disabled={isApproved}
+                      inputMode="decimal"
+                      name={`discountPercent:${line.id}`}
+                      type="text"
+                    />
+                  </td>
                   <td>{formatCurrency(line.lineTotal)}</td>
                 </tr>
               ))}
@@ -198,7 +218,10 @@ export default async function AdminOrderDetailPage({
             amount: Number(adjustment.amount).toFixed(2),
           }))}
           disabled={isApproved}
+          freightAmount={order.freightAmount}
           salesRepNote={order.salesRepNote}
+          taxName={order.taxName}
+          taxRate={order.taxRate}
         />
 
         <div className="profile-order-summary admin-order-summary">
@@ -206,6 +229,18 @@ export default async function AdminOrderDetailPage({
             <span>Subtotal</span>
             <strong>{formatCurrency(order.subtotalAmount)}</strong>
           </div>
+          {Number(order.freightAmount) > 0 ? (
+            <div className="profile-order-summary-row">
+              <span>Freight</span>
+              <strong>{formatCurrency(order.freightAmount)}</strong>
+            </div>
+          ) : null}
+          {Number(order.taxAmount) > 0 ? (
+            <div className="profile-order-summary-row">
+              <span>{order.taxName ? `${order.taxName} ${Number(order.taxRate || "0").toFixed(2)}%` : "Tax"}</span>
+              <strong>{formatCurrency(order.taxAmount)}</strong>
+            </div>
+          ) : null}
           {order.adjustments.map((adjustment) => (
             <div className="profile-order-summary-row" key={adjustment.id}>
               <span>{adjustment.label}</span>

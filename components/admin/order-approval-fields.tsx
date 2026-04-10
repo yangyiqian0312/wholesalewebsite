@@ -15,11 +15,17 @@ function createAdjustmentId() {
 export function OrderApprovalFields({
   adjustments,
   disabled,
+  freightAmount,
   salesRepNote,
+  taxName,
+  taxRate,
 }: {
   adjustments: AdjustmentInput[];
   disabled: boolean;
+  freightAmount: string;
   salesRepNote: string | null;
+  taxName: string | null;
+  taxRate: string | null;
 }) {
   const [items, setItems] = useState<AdjustmentInput[]>(
     adjustments.length
@@ -41,6 +47,44 @@ export function OrderApprovalFields({
           rows={4}
         />
       </label>
+
+      <div className="admin-order-financial-grid">
+        <label className="admin-order-note-field">
+          <span>Freight</span>
+          <input
+            className="admin-order-line-input"
+            defaultValue={Number(freightAmount).toFixed(2)}
+            disabled={disabled}
+            inputMode="decimal"
+            name="freightAmount"
+            placeholder="0.00"
+            type="text"
+          />
+        </label>
+        <label className="admin-order-note-field">
+          <span>Tax Label</span>
+          <input
+            className="admin-order-line-input"
+            defaultValue={taxName ?? ""}
+            disabled={disabled}
+            name="taxName"
+            placeholder="Tax / 83501"
+            type="text"
+          />
+        </label>
+        <label className="admin-order-note-field">
+          <span>Tax Rate %</span>
+          <input
+            className="admin-order-line-input"
+            defaultValue={taxRate ? Number(taxRate).toFixed(2) : ""}
+            disabled={disabled}
+            inputMode="decimal"
+            name="taxRate"
+            placeholder="0.00"
+            type="text"
+          />
+        </label>
+      </div>
 
       <div className="admin-order-adjustments">
         <div className="admin-order-adjustments-head">

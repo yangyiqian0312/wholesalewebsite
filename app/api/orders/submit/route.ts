@@ -8,8 +8,12 @@ type SubmitOrderItem = {
   quantity: number;
   unitPrice: string;
   originalUnitPrice?: string;
+  salesUomName?: string;
+  salesUomQuantity?: string;
+  salesUomStandardQuantity?: string;
   productName?: string;
   productCode?: string;
+  standardUomName?: string;
 };
 
 function isValidSubmitOrderItem(value: unknown): value is SubmitOrderItem {
@@ -28,8 +32,12 @@ function isValidSubmitOrderItem(value: unknown): value is SubmitOrderItem {
     typeof item.unitPrice === "string" &&
     item.unitPrice.trim().length > 0 &&
     (item.originalUnitPrice === undefined || typeof item.originalUnitPrice === "string") &&
+    (item.salesUomName === undefined || typeof item.salesUomName === "string") &&
+    (item.salesUomQuantity === undefined || typeof item.salesUomQuantity === "string") &&
+    (item.salesUomStandardQuantity === undefined || typeof item.salesUomStandardQuantity === "string") &&
     (item.productName === undefined || typeof item.productName === "string") &&
-    (item.productCode === undefined || typeof item.productCode === "string")
+    (item.productCode === undefined || typeof item.productCode === "string") &&
+    (item.standardUomName === undefined || typeof item.standardUomName === "string")
   );
 }
 
