@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
+import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
+import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 function DetailBlock({
   label,
@@ -22,10 +23,24 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ orderId: string }>;
 }) {
+  const user = await requireAdminPortalUser();
   const { orderId } = await params;
   const order = await fetchAdminOrderById(orderId);
 
   if (!order) {
+    notFound();
+  }
+
+  const application = await fetchAdminApplicationById(order.applicationId);
+
+  if (!application) {
+    notFound();
+  }
+
+  if (
+    user.role === "sales_rep" &&
+    application.assignedSalesRepEmail?.trim().toLowerCase() !== user.email?.trim().toLowerCase()
+  ) {
     notFound();
   }
 

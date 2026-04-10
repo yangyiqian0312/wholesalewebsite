@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "../../components/auth/login-form";
-import { getAdminEmails, isAdminEmail } from "../../utils/admin-auth";
+import { getAdminPortalEmails, getAdminPortalRole } from "../../utils/admin-auth";
 import { createClient } from "../../utils/supabase/server";
 
 export default async function LoginPage() {
-  const adminEmails = getAdminEmails();
+  const adminPortalEmails = getAdminPortalEmails();
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect(isAdminEmail(user.email) ? "/admin" : "/catalog");
+    redirect(getAdminPortalRole(user.email) ? "/admin" : "/catalog");
   }
 
   return (
@@ -26,7 +26,7 @@ export default async function LoginPage() {
             workflows.
           </p>
 
-          <LoginForm adminEmails={adminEmails} />
+          <LoginForm adminPortalEmails={adminPortalEmails} />
 
           <Link className="text-button login-back" href="/catalog">
             Back to Catalog

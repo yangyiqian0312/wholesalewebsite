@@ -9,6 +9,7 @@ import {
   approveApplicationAction,
   denyApplicationAction,
 } from "../_lib/application-actions";
+import { getSalesRepEmails, requireAdminPortalUser, type AdminPortalRole } from "../../../utils/admin-auth";
 
 const applicationTabs = [
   {
@@ -38,8 +39,14 @@ type ApplicationTabKey = (typeof applicationTabs)[number]["key"];
 
 function ApplicationCard({
   application,
+  role,
+  currentUserEmail,
+  salesRepEmails,
 }: {
   application: AccountApplication;
+  role: AdminPortalRole;
+  currentUserEmail: string;
+  salesRepEmails: string[];
 }) {
   const statusClassName =
     application.status === "APPROVED"
@@ -64,15 +71,11 @@ function ApplicationCard({
 
       <div className="admin-application-grid">
         <div className="admin-application-block">
-          <span>Business Type</span>
+          <span>Type of Ownership</span>
           <strong>{application.businessType}</strong>
         </div>
-        <div className="admin-application-block">
-          <span>Business Model</span>
-          <strong>{application.businessModel}</strong>
-        </div>
         <div className="admin-application-block admin-application-block-wide">
-          <span>Address</span>
+          <span>Company Address</span>
           <strong>
             {application.companyAddress}, {application.city}, {application.stateProvince}{" "}
             {application.zipPostalCode}, {application.country}
@@ -82,21 +85,21 @@ function ApplicationCard({
           <span>Website</span>
           <strong>{application.website || "Not provided"}</strong>
         </div>
-        <div className="admin-application-block">
-          <span>Store / Marketplace</span>
-          <strong>{application.storeMarketplaceLink || "Not provided"}</strong>
-        </div>
         <div className="admin-application-block admin-application-block-wide">
-          <span>Sales Channels</span>
+          <span>Type of Operation</span>
           <strong>{application.salesChannels.join(", ") || "None selected"}</strong>
         </div>
         <div className="admin-application-block admin-application-block-wide">
-          <span>Product Interests</span>
+          <span>I Intend To Order</span>
           <strong>{application.productInterests.join(", ") || "None selected"}</strong>
         </div>
         <div className="admin-application-block">
           <span>Purchase Volume</span>
           <strong>{application.expectedPurchaseVolume}</strong>
+        </div>
+        <div className="admin-application-block">
+          <span>Assigned Sales Rep</span>
+          <strong>{application.assignedSalesRepEmail || "Unassigned"}</strong>
         </div>
         <div className="admin-application-block">
           <span>Permit / Tax ID</span>
@@ -124,10 +127,15 @@ function ApplicationCard({
         </div>
         {application.physicalStoreAddress ? (
           <div className="admin-application-block admin-application-block-wide">
-            <span>Physical Store Address</span>
+            <span>Shipping Address</span>
             <strong>{application.physicalStoreAddress}</strong>
           </div>
-        ) : null}
+        ) : (
+          <div className="admin-application-block admin-application-block-wide">
+            <span>Shipping Address</span>
+            <strong>Same as company address</strong>
+          </div>
+        )}
         {application.onlineChannelNotes ? (
           <div className="admin-application-block admin-application-block-wide">
             <span>Channel Notes</span>
@@ -163,6 +171,21 @@ function ApplicationCard({
         <div className="admin-review-actions">
           <form action={approveApplicationAction}>
             <input name="applicationId" type="hidden" value={application.id} />
+            {role === "sales_rep" ? (
+              <input name="assignedSalesRepEmail" type="hidden" value={currentUserEmail} />
+            ) : salesRepEmails.length ? (
+              <label className="open-account-field admin-deny-field">
+                <span>Assign Sales Rep</span>
+                <select defaultValue={application.assignedSalesRepEmail || ""} name="assignedSalesRepEmail">
+                  <option value="">Unassigned</option>
+                  {salesRepEmails.map((salesRepEmail) => (
+                    <option key={salesRepEmail} value={salesRepEmail}>
+                      {salesRepEmail}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <button className="primary-button admin-approve-button" type="submit">
               Approve
             </button>
@@ -193,7 +216,9 @@ export default async function AdminApplicationsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const user = await requireAdminPortalUser();
   const applications = await fetchAdminApplications();
+  const salesRepEmails = getSalesRepEmails();
   const pendingApplications = applications.filter((application) => application.status === "PENDING");
   const approvedApplications = applications.filter((application) => application.status === "APPROVED");
   const rejectedApplications = applications.filter((application) => application.status === "DENIED");
@@ -289,7 +314,13 @@ export default async function AdminApplicationsPage({
         <div className="admin-card-stack">
           {activeApplications.length ? (
             activeApplications.map((application) => (
-              <ApplicationCard application={application} key={application.id} />
+              <ApplicationCard
+                application={application}
+                currentUserEmail={user.email ?? ""}
+                key={application.id}
+                role={user.role}
+                salesRepEmails={salesRepEmails}
+              />
             ))
           ) : (
             <section className="panel admin-empty-state">

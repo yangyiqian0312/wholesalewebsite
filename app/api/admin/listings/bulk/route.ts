@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../../../utils/backend-api";
-import { requireAdminUser } from "../../../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
 type ListingUpdatePayload = {
   productId: string;
@@ -12,7 +12,7 @@ type ListingUpdatePayload = {
 };
 
 export async function PATCH(request: Request) {
-  await requireAdminUser();
+  await requireAdminPortalUser();
 
   const payload = (await request.json()) as {
     items?: ListingUpdatePayload[];

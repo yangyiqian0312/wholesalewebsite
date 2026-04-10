@@ -1,12 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../../../utils/backend-api";
-import { requireAdminUser } from "../../../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ productId: string }> },
 ) {
-  await requireAdminUser();
+  await requireAdminPortalUser();
 
   const { productId } = await context.params;
   const payload = (await request.json()) as {

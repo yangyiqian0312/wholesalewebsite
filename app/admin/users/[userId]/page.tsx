@@ -5,6 +5,7 @@ import {
   fetchAdminOrdersByApplicationId,
   formatAdminDate,
 } from "../../_lib/admin-data";
+import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 function DetailBlock({
   label,
@@ -26,10 +27,18 @@ export default async function AdminUserDetailPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
+  const user = await requireAdminPortalUser();
   const { userId } = await params;
   const application = await fetchAdminApplicationById(userId);
 
   if (!application) {
+    notFound();
+  }
+
+  if (
+    user.role === "sales_rep" &&
+    application.assignedSalesRepEmail?.trim().toLowerCase() !== user.email?.trim().toLowerCase()
+  ) {
     notFound();
   }
 
@@ -68,6 +77,10 @@ export default async function AdminUserDetailPage({
           <span>Submitted Revenue</span>
           <strong>${totalOrdered}</strong>
         </article>
+        <article className="panel admin-summary-card">
+          <span>Sales Rep</span>
+          <strong>{application.assignedSalesRepEmail || "Unassigned"}</strong>
+        </article>
       </section>
 
       <section className="panel admin-application-card">
@@ -80,13 +93,12 @@ export default async function AdminUserDetailPage({
 
         <div className="admin-application-grid">
           <DetailBlock label="Business Name" value={application.businessName} />
-          <DetailBlock label="Business Type" value={application.businessType} />
+          <DetailBlock label="Type of Ownership" value={application.businessType} />
           <DetailBlock label="Email" value={application.email} />
           <DetailBlock label="Phone" value={application.phone} />
-          <DetailBlock label="Business Model" value={application.businessModel} />
           <DetailBlock label="Purchase Volume" value={application.expectedPurchaseVolume} />
           <div className="admin-application-block admin-application-block-wide">
-            <span>Address</span>
+            <span>Company Address</span>
             <strong>
               {application.companyAddress}, {application.city}, {application.stateProvince}{" "}
               {application.zipPostalCode}, {application.country}
@@ -94,27 +106,28 @@ export default async function AdminUserDetailPage({
           </div>
           <DetailBlock label="Website" value={application.website || "Not provided"} />
           <DetailBlock
-            label="Store / Marketplace"
-            value={application.storeMarketplaceLink || "Not provided"}
-          />
-          <DetailBlock
             label="Permit / Tax ID"
             value={application.hasResellerPermitOrTaxId ? "Yes" : "No"}
           />
           <div className="admin-application-block admin-application-block-wide">
-            <span>Sales Channels</span>
+            <span>Type of Operation</span>
             <strong>{application.salesChannels.join(", ") || "None selected"}</strong>
           </div>
           <div className="admin-application-block admin-application-block-wide">
-            <span>Product Interests</span>
+            <span>I Intend To Order</span>
             <strong>{application.productInterests.join(", ") || "None selected"}</strong>
           </div>
           {application.physicalStoreAddress ? (
             <div className="admin-application-block admin-application-block-wide">
-              <span>Physical Store Address</span>
+              <span>Shipping Address</span>
               <strong>{application.physicalStoreAddress}</strong>
             </div>
-          ) : null}
+          ) : (
+            <div className="admin-application-block admin-application-block-wide">
+              <span>Shipping Address</span>
+              <strong>Same as company address</strong>
+            </div>
+          )}
           {application.onlineChannelNotes ? (
             <div className="admin-application-block admin-application-block-wide">
               <span>Channel Notes</span>

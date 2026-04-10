@@ -275,6 +275,10 @@ export async function reviewAccountApplication(
       status: input.status,
       deniedReason: input.status === "DENIED" ? normalizeOptionalString(input.deniedReason) : null,
       reviewedByEmail: input.reviewedByEmail.trim().toLowerCase(),
+      assignedSalesRepEmail:
+        input.status === "APPROVED"
+          ? normalizeOptionalString(input.assignedSalesRepEmail)
+          : null,
       reviewedAt: new Date(),
       publicEditToken: input.status === "DENIED" ? randomUUID() : null,
       publicRegistrationToken: input.status === "APPROVED" ? randomUUID() : null,
@@ -340,6 +344,7 @@ export async function resubmitAccountApplication(
         status: "PENDING",
         deniedReason: null,
         reviewedByEmail: null,
+        assignedSalesRepEmail: null,
         reviewedAt: null,
         publicEditToken: null,
         ...(shouldReplaceDocuments

@@ -76,24 +76,12 @@ export default async function OpenAccountPage({
       <main className="page-layout open-account-layout">
         <section className="open-account-hero">
           <div>
-            <p className="eyebrow">Open A Wholesale Account</p>
             <h1>
               {isEditingDeniedApplication
                 ? "Update your application and resubmit for review"
-                : "Apply for approved B2B purchasing access"}
+                : "New Account Application"}
             </h1>
-            <p className="open-account-copy">
-              {isEditingDeniedApplication
-                ? "Your previous application was denied, but you can correct the details below and resubmit the same application for another review."
-                : "Submit your company information, sales channels, product interests, and tax credentials. Approved accounts can then log in for pricing and wholesale ordering."}
-            </p>
-          </div>
 
-          <div className="open-account-aside">
-            <strong>Review Flow</strong>
-            <span>1. Submit application</span>
-            <span>2. Admin reviews documents and business details</span>
-            <span>3. Application is approved or denied with notes</span>
           </div>
         </section>
 

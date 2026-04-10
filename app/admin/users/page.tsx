@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { fetchAdminApplications, formatAdminDate } from "../_lib/admin-data";
+import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
 export default async function AdminUsersPage() {
+  const user = await requireAdminPortalUser();
   const applications = await fetchAdminApplications();
   const approvedUsers = applications
     .filter((application) => application.status === "APPROVED")
+    .filter((application) =>
+      user.role === "admin"
+        ? true
+        : application.assignedSalesRepEmail?.trim().toLowerCase() === user.email?.trim().toLowerCase(),
+    )
     .map((application) => ({
     id: application.id,
     name: application.contactName,
@@ -12,6 +19,7 @@ export default async function AdminUsersPage() {
     businessName: application.businessName,
     phone: application.phone,
     status: application.status,
+    assignedSalesRepEmail: application.assignedSalesRepEmail,
     createdAt: application.createdAt,
     reviewedAt: application.reviewedAt,
     }));
@@ -59,6 +67,7 @@ export default async function AdminUsersPage() {
               <tr>
                 <th>Contact</th>
                 <th>Company</th>
+                <th>Sales Rep</th>
                 <th>Submitted</th>
                 <th>Approved</th>
               </tr>
@@ -81,12 +90,13 @@ export default async function AdminUsersPage() {
                       {user.businessName}
                     </Link>
                   </td>
+                  <td>{user.assignedSalesRepEmail || "Unassigned"}</td>
                   <td>{formatAdminDate(user.createdAt)}</td>
                   <td>{formatAdminDate(user.reviewedAt)}</td>
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <div className="admin-table-empty">No approved users yet.</div>
                   </td>
                 </tr>

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../utils/backend-api";
-import { requireAdminUser } from "../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
 function buildListingsPath({
   smart,
@@ -63,7 +63,7 @@ function parseListingPayload(formData: FormData, productId: string) {
 export async function updateListingAction(formData: FormData) {
   "use server";
 
-  await requireAdminUser();
+  await requireAdminPortalUser();
 
   const smart = String(formData.get("smart") ?? "").trim();
   const statusFilter = String(formData.get("statusFilter") ?? "").trim();

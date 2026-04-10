@@ -1,11 +1,11 @@
 import { getAdminApiToken, getBackendBaseUrl } from "../../../../utils/backend-api";
-import { requireAdminUser } from "../../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ documentId: string }> },
 ) {
-  await requireAdminUser();
+  await requireAdminPortalUser();
 
   const { documentId } = await context.params;
 

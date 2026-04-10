@@ -29,27 +29,39 @@ type EditableApplication = {
   deniedReason: string | null;
 };
 
+type ParsedShippingAddress = {
+  addressee: string;
+  streetAddress: string;
+  city: string;
+  stateProvince: string;
+  zipPostalCode: string;
+  country: string;
+};
+
 const interestOptions = [
-  "Pokemon",
-  "One Piece",
-  "Naruto",
-  "Dragon Ball",
-  "Weiss Schwarz",
-  "Union Arena",
-  "Yu-Gi-Oh!",
-  "Gundam Card Game",
-  "Digimon",
+  "Card Games",
+  "CCG's",
+  "Supplies",
+  "Trading Cards",
+  "Toys",
   "Other",
 ] as const;
 
 const salesChannels = [
-  "Physical Store",
-  "Shopify Website",
-  "TikTok Shop",
-  "Whatnot",
-  "eBay",
-  "Amazon",
+  "Wholesale/Distributor",
+  "Brick & Mortar",
+  "Conventions",
+  "Retail Chain",
+  "Flea Market",
+  "Internet",
   "Other",
+] as const;
+
+const ownershipOptions = [
+  "Corporation",
+  "LLC",
+  "Individual Owner",
+  "Partnership",
 ] as const;
 
 type FormState = {
@@ -67,7 +79,12 @@ type FormState = {
   storeMarketplaceLink: string;
   businessModel: string;
   salesChannels: string[];
-  physicalStoreAddress: string;
+  shippingAddressee: string;
+  shippingStreetAddress: string;
+  shippingCity: string;
+  shippingStateProvince: string;
+  shippingZipPostalCode: string;
+  shippingCountry: string;
   onlineChannelNotes: string;
   productInterests: string[];
   expectedPurchaseVolume: string;
@@ -86,7 +103,52 @@ function normalizeOptionalString(value: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function parseShippingAddress(value?: string | null): ParsedShippingAddress {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return {
+      addressee: "",
+      streetAddress: "",
+      city: "",
+      stateProvince: "",
+      zipPostalCode: "",
+      country: "",
+    };
+  }
+
+  const lines = trimmedValue
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const [addressee = "", streetAddress = "", cityStateZip = "", country = ""] = lines;
+  const cityStateZipMatch = cityStateZip.match(/^(.*?)(?:,\s*([A-Za-z .'-]+))?(?:\s+([A-Za-z0-9-]+))?$/);
+
+  return {
+    addressee,
+    streetAddress,
+    city: cityStateZipMatch?.[1]?.trim() ?? "",
+    stateProvince: cityStateZipMatch?.[2]?.trim() ?? "",
+    zipPostalCode: cityStateZipMatch?.[3]?.trim() ?? "",
+    country,
+  };
+}
+
+function buildShippingAddressValue(state: FormState) {
+  return [
+    state.shippingAddressee.trim(),
+    state.shippingStreetAddress.trim(),
+    [state.shippingCity.trim(), state.shippingStateProvince.trim()].filter(Boolean).join(", "),
+    state.shippingZipPostalCode.trim(),
+    state.shippingCountry.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function buildInitialState(defaults: EditableApplication | null | undefined): FormState {
+  const shippingAddress = parseShippingAddress(defaults?.physicalStoreAddress);
+
   return {
     contactName: defaults?.contactName ?? "",
     email: defaults?.email ?? "",
@@ -102,7 +164,12 @@ function buildInitialState(defaults: EditableApplication | null | undefined): Fo
     storeMarketplaceLink: defaults?.storeMarketplaceLink ?? "",
     businessModel: defaults?.businessModel ?? "",
     salesChannels: defaults?.salesChannels ?? [],
-    physicalStoreAddress: defaults?.physicalStoreAddress ?? "",
+    shippingAddressee: shippingAddress.addressee,
+    shippingStreetAddress: shippingAddress.streetAddress,
+    shippingCity: shippingAddress.city,
+    shippingStateProvince: shippingAddress.stateProvince,
+    shippingZipPostalCode: shippingAddress.zipPostalCode,
+    shippingCountry: shippingAddress.country,
     onlineChannelNotes: defaults?.onlineChannelNotes ?? "",
     productInterests: defaults?.productInterests ?? [],
     expectedPurchaseVolume: defaults?.expectedPurchaseVolume ?? "",
@@ -127,9 +194,11 @@ function validateForm(state: FormState): FieldErrors {
   if (!state.stateProvince.trim()) errors.stateProvince = "State / Province is required.";
   if (!state.zipPostalCode.trim()) errors.zipPostalCode = "ZIP / Postal Code is required.";
   if (!state.country.trim()) errors.country = "Country is required.";
-  if (!state.businessModel.trim()) errors.businessModel = "Business Model is required.";
   if (!state.expectedPurchaseVolume.trim()) {
     errors.expectedPurchaseVolume = "Expected Purchase Volume is required.";
+  }
+  else if (!/^\d+$/.test(state.expectedPurchaseVolume.trim())) {
+    errors.expectedPurchaseVolume = "Expected Purchase Volume must be a number.";
   }
   if (!state.hasResellerPermitOrTaxId.trim()) {
     errors.hasResellerPermitOrTaxId = "Please select Yes or No.";
@@ -294,6 +363,23 @@ function ChoicePill({
   );
 }
 
+function CheckboxField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="open-account-checkbox-field">
+      <input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 export function OpenAccountForm({
   backendBaseUrl,
   editableApplication,
@@ -311,6 +397,9 @@ export function OpenAccountForm({
   const [submitError, setSubmitError] = useState<string | null>(initialStatus === "error" ? initialMessage ?? null : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [shippingAddressSameAsCompany, setShippingAddressSameAsCompany] = useState(
+    !editableApplication?.physicalStoreAddress?.trim(),
+  );
 
   const isEditingDeniedApplication = Boolean(editableApplication);
   const isSuccessState = initialStatus === "submitted" || initialStatus === "resubmitted";
@@ -382,6 +471,27 @@ export function OpenAccountForm({
 
     const nextErrors = validateForm(formState);
 
+    if (!shippingAddressSameAsCompany) {
+      if (!formState.shippingAddressee.trim()) {
+        nextErrors.shippingAddressee = "Shipping Addressee is required.";
+      }
+      if (!formState.shippingStreetAddress.trim()) {
+        nextErrors.shippingStreetAddress = "Street Address is required.";
+      }
+      if (!formState.shippingCity.trim()) {
+        nextErrors.shippingCity = "City is required.";
+      }
+      if (!formState.shippingStateProvince.trim()) {
+        nextErrors.shippingStateProvince = "State / Province is required.";
+      }
+      if (!formState.shippingZipPostalCode.trim()) {
+        nextErrors.shippingZipPostalCode = "ZIP / Postal Code is required.";
+      }
+      if (!formState.shippingCountry.trim()) {
+        nextErrors.shippingCountry = "Country is required.";
+      }
+    }
+
     if (Object.keys(nextErrors).length > 0) {
       setFieldErrors(nextErrors);
       setSubmitError("Please fix the highlighted fields before submitting.");
@@ -403,10 +513,12 @@ export function OpenAccountForm({
       zipPostalCode: formState.zipPostalCode.trim(),
       country: formState.country.trim(),
       website: normalizeOptionalString(formState.website),
-      storeMarketplaceLink: normalizeOptionalString(formState.storeMarketplaceLink),
-      businessModel: formState.businessModel.trim(),
+      storeMarketplaceLink: undefined,
+      businessModel: formState.salesChannels.join(", ") || "Not specified",
       salesChannels: formState.salesChannels,
-      physicalStoreAddress: normalizeOptionalString(formState.physicalStoreAddress),
+      physicalStoreAddress: shippingAddressSameAsCompany
+        ? undefined
+        : normalizeOptionalString(buildShippingAddressValue(formState)),
       onlineChannelNotes: normalizeOptionalString(formState.onlineChannelNotes),
       productInterests: formState.productInterests,
       expectedPurchaseVolume: formState.expectedPurchaseVolume.trim(),
@@ -551,10 +663,10 @@ export function OpenAccountForm({
         />
         <SelectField
           error={fieldErrors.businessType}
-          label="Business Type"
+          label="Type of Ownership"
           name="businessType"
           onChange={(value) => updateField("businessType", value)}
-          options={["Retail Store", "Online Seller", "Distributor", "Both Physical + Online"]}
+          options={ownershipOptions}
           required
           value={formState.businessType}
         />
@@ -610,31 +722,80 @@ export function OpenAccountForm({
           placeholder="https://yourstore.com or crossingcards.com"
           value={formState.website}
         />
-        <TextField
-          label="Store / Marketplace Link"
-          name="storeMarketplaceLink"
-          onChange={(value) => updateField("storeMarketplaceLink", value)}
-          placeholder="Whatnot, Shopify, TikTok Shop"
-          value={formState.storeMarketplaceLink}
-        />
+        <div className="open-account-field open-account-field-full">
+          <span>Shipping Address</span>
+          <CheckboxField
+            checked={shippingAddressSameAsCompany}
+            label="Shipping address is the same as company address"
+            onChange={setShippingAddressSameAsCompany}
+          />
+        </div>
+        {!shippingAddressSameAsCompany ? (
+          <>
+            <TextField
+              error={fieldErrors.shippingAddressee}
+              label="Shipping Addressee"
+              name="shippingAddressee"
+              onChange={(value) => updateField("shippingAddressee", value)}
+              placeholder="Receiving contact or business name"
+              required
+              value={formState.shippingAddressee}
+            />
+            <TextField
+              error={fieldErrors.shippingStreetAddress}
+              label="Street Address"
+              name="shippingStreetAddress"
+              onChange={(value) => updateField("shippingStreetAddress", value)}
+              placeholder="123 Shipping Street"
+              required
+              value={formState.shippingStreetAddress}
+            />
+            <TextField
+              error={fieldErrors.shippingCity}
+              label="City"
+              name="shippingCity"
+              onChange={(value) => updateField("shippingCity", value)}
+              placeholder="Los Angeles"
+              required
+              value={formState.shippingCity}
+            />
+            <TextField
+              error={fieldErrors.shippingStateProvince}
+              label="State / Province"
+              name="shippingStateProvince"
+              onChange={(value) => updateField("shippingStateProvince", value)}
+              placeholder="California"
+              required
+              value={formState.shippingStateProvince}
+            />
+            <TextField
+              error={fieldErrors.shippingZipPostalCode}
+              label="ZIP / Postal Code"
+              name="shippingZipPostalCode"
+              onChange={(value) => updateField("shippingZipPostalCode", value)}
+              placeholder="90001"
+              required
+              value={formState.shippingZipPostalCode}
+            />
+            <TextField
+              error={fieldErrors.shippingCountry}
+              label="Country"
+              name="shippingCountry"
+              onChange={(value) => updateField("shippingCountry", value)}
+              placeholder="United States"
+              required
+              value={formState.shippingCountry}
+            />
+          </>
+        ) : null}
       </FormSection>
 
       <FormSection
-        description="How you sell today and which channels matter most for your inventory planning."
-        title="Sales Channels"
+        description="Business operations and assortment planning used during account review."
+        title="Business Operations"
       >
-        <SelectField
-          error={fieldErrors.businessModel}
-          label="Business Model"
-          name="businessModel"
-          onChange={(value) => updateField("businessModel", value)}
-          options={["Online Only", "Physical Retail", "Both Physical + Online"]}
-          required
-          value={formState.businessModel}
-        />
-
-        <div className="open-account-field open-account-field-full">
-          <span>Main Sales Channels</span>
+        <label className="open-account-field open-account-field-full">
+          <span>Type of Operation</span>
           <div className="open-account-check-grid">
             {salesChannels.map((channel) => (
               <ChoicePill
@@ -645,30 +806,10 @@ export function OpenAccountForm({
               />
             ))}
           </div>
-        </div>
+        </label>
 
-        <TextField
-          label="Physical Store Address"
-          name="physicalStoreAddress"
-          onChange={(value) => updateField("physicalStoreAddress", value)}
-          placeholder="Only if you operate retail"
-          value={formState.physicalStoreAddress}
-        />
-        <TextAreaField
-          label="Online Channel Notes"
-          name="onlineChannelNotes"
-          onChange={(value) => updateField("onlineChannelNotes", value)}
-          placeholder="Add marketplace usernames, storefront URLs, or other channel context."
-          value={formState.onlineChannelNotes}
-        />
-      </FormSection>
-
-      <FormSection
-        description="Used for customer grouping, sales follow-up, and future assortment planning."
-        title="Product Interests"
-      >
         <div className="open-account-field open-account-field-full">
-          <span>Which products or brands are you interested in?</span>
+          <span>I Intend To Order</span>
           <div className="open-account-interest-grid">
             {interestOptions.map((interest) => (
               <ChoicePill
@@ -685,10 +826,18 @@ export function OpenAccountForm({
           error={fieldErrors.expectedPurchaseVolume}
           label="Expected Purchase Volume"
           name="expectedPurchaseVolume"
-          onChange={(value) => updateField("expectedPurchaseVolume", value)}
-          placeholder="$2,000 / month, 10 cases / release, etc."
+          onChange={(value) => updateField("expectedPurchaseVolume", value.replace(/[^\d]/g, ""))}
+          placeholder="1000"
           required
           value={formState.expectedPurchaseVolume}
+        />
+
+        <TextAreaField
+          label="Online Channel Notes"
+          name="onlineChannelNotes"
+          onChange={(value) => updateField("onlineChannelNotes", value)}
+          placeholder="Add marketplace usernames, storefront URLs, or other channel context."
+          value={formState.onlineChannelNotes}
         />
       </FormSection>
 
@@ -738,9 +887,8 @@ export function OpenAccountForm({
         <div>
           <h2>Submit Application</h2>
           <p>
-            {isEditingDeniedApplication
-              ? "Update the details above and resubmit this same application. The denial note stays visible until the application is reviewed again."
-              : "This version now saves the application for admin review. File upload storage is still prototype-only and currently records selected file names instead of storing the actual files."}
+            By submitting you agree to our{" "}
+            <Link href="/terms-of-sale">Terms of Sale</Link>.
           </p>
         </div>
 

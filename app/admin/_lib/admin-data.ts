@@ -35,6 +35,7 @@ export type AccountApplication = {
   status: ApplicationStatus;
   deniedReason: string | null;
   reviewedByEmail: string | null;
+  assignedSalesRepEmail: string | null;
   reviewedAt: string | null;
   createdAt: string;
 };

@@ -176,19 +176,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           </div>
           <div className="profile-grid">
             <Field label="Business Name" onChange={(value) => updateField("businessName", value)} value={formState.businessName} />
-            <Field label="Business Type" onChange={(value) => updateField("businessType", value)} value={formState.businessType} />
-            <Field label="Business Model" onChange={(value) => updateField("businessModel", value)} value={formState.businessModel} />
+            <Field label="Type of Ownership" onChange={(value) => updateField("businessType", value)} value={formState.businessType} />
+            <Field label="Type of Operation" onChange={(value) => updateField("businessModel", value)} value={formState.businessModel} />
             <Field
               label="Expected Purchase Volume"
               onChange={(value) => updateField("expectedPurchaseVolume", value)}
               value={formState.expectedPurchaseVolume}
             />
             <Field label="Website" onChange={(value) => updateField("website", value)} value={formState.website} />
-            <Field
-              label="Marketplace / Store Link"
-              onChange={(value) => updateField("storeMarketplaceLink", value)}
-              value={formState.storeMarketplaceLink}
-            />
           </div>
         </section>
 
@@ -210,7 +205,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             <Field label="Country" onChange={(value) => updateField("country", value)} value={formState.country} />
             <Field
               className="profile-field-full"
-              label="Physical Store Address"
+              hint="Leave blank if shipping is the same as your company address."
+              label="Shipping Address"
               onChange={(value) => updateField("physicalStoreAddress", value)}
               value={formState.physicalStoreAddress}
             />

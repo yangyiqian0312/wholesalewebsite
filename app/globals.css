@@ -273,6 +273,28 @@ select {
   gap: 10px;
 }
 
+.open-account-checkbox-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-900);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.open-account-checkbox-field input {
+  appearance: auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+}
+
 .choice-pill {
   position: relative;
   display: inline-flex;

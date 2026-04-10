@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../utils/backend-api";
 import { getFrontendBaseUrl } from "../../../utils/backend-api";
-import { requireAdminUser } from "../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
 function getErrorMessage(payload: unknown) {
   if (!payload || typeof payload !== "object") {
@@ -16,8 +16,9 @@ function getErrorMessage(payload: unknown) {
 export async function approveApplicationAction(formData: FormData) {
   "use server";
 
-  const user = await requireAdminUser();
+  const user = await requireAdminPortalUser();
   const applicationId = String(formData.get("applicationId") ?? "").trim();
+  const assignedSalesRepEmail = String(formData.get("assignedSalesRepEmail") ?? "").trim();
 
   if (!applicationId) {
     redirect("/admin/applications?error=missing-application");
@@ -35,6 +36,7 @@ export async function approveApplicationAction(formData: FormData) {
       body: JSON.stringify({
         status: "APPROVED",
         reviewedByEmail: user.email,
+        assignedSalesRepEmail: assignedSalesRepEmail || null,
         frontendBaseUrl: getFrontendBaseUrl(),
       }),
     },
@@ -62,7 +64,7 @@ export async function approveApplicationAction(formData: FormData) {
 export async function denyApplicationAction(formData: FormData) {
   "use server";
 
-  const user = await requireAdminUser();
+  const user = await requireAdminPortalUser();
   const applicationId = String(formData.get("applicationId") ?? "").trim();
   const deniedReason = String(formData.get("deniedReason") ?? "").trim();
 

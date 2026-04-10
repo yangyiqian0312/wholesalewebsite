@@ -1,9 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { getBackendBaseUrl } from "../../../../../utils/backend-api";
-import { requireAdminUser } from "../../../../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
 export async function POST() {
-  await requireAdminUser();
+  await requireAdminPortalUser();
 
   const response = await fetch(`${getBackendBaseUrl()}/api/sync/inflow/products`, {
     method: "POST",

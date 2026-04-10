@@ -1,9 +1,24 @@
 import Link from "next/link";
-import { fetchAdminOrders, formatAdminDate } from "../_lib/admin-data";
+import { fetchAdminApplications, fetchAdminOrders, formatAdminDate } from "../_lib/admin-data";
+import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
 export default async function AdminOrdersPage() {
-  const orders = await fetchAdminOrders();
-  const totalRevenue = orders
+  const user = await requireAdminPortalUser();
+  const [orders, applications] = await Promise.all([
+    fetchAdminOrders(),
+    fetchAdminApplications(),
+  ]);
+  const visibleApplicationIds = new Set(
+    applications
+      .filter((application) =>
+        user.role === "admin"
+          ? true
+          : application.assignedSalesRepEmail?.trim().toLowerCase() === user.email?.trim().toLowerCase(),
+      )
+      .map((application) => application.id),
+  );
+  const visibleOrders = orders.filter((order) => visibleApplicationIds.has(order.applicationId));
+  const totalRevenue = visibleOrders
     .reduce((sum, order) => sum + Number(order.subtotalAmount), 0)
     .toFixed(2);
 
@@ -12,7 +27,7 @@ export default async function AdminOrdersPage() {
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">
           <span>Total Orders</span>
-          <strong>{orders.length}</strong>
+          <strong>{visibleOrders.length}</strong>
         </article>
         <article className="panel admin-summary-card">
           <span>Submitted Revenue</span>
@@ -20,7 +35,7 @@ export default async function AdminOrdersPage() {
         </article>
         <article className="panel admin-summary-card">
           <span>Latest Order</span>
-          <strong>{orders[0] ? formatAdminDate(orders[0].submittedAt) : "None"}</strong>
+          <strong>{visibleOrders[0] ? formatAdminDate(visibleOrders[0].submittedAt) : "None"}</strong>
         </article>
       </section>
 
@@ -45,7 +60,7 @@ export default async function AdminOrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.length ? orders.map((order) => (
+              {visibleOrders.length ? visibleOrders.map((order) => (
                 <tr key={order.id}>
                   <td>
                     <Link className="admin-table-link" href={`/admin/orders/${order.id}`}>

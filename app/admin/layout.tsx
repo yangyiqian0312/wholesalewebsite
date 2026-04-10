@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { requireAdminUser } from "../../utils/admin-auth";
+import { requireAdminPortalUser } from "../../utils/admin-auth";
 
 const adminNavItems = [
   {
@@ -30,7 +30,7 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  const user = await requireAdminUser();
+  const user = await requireAdminPortalUser();
 
   const sidebarContent = (
     <>

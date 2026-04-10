@@ -6,10 +6,10 @@ import { createClient } from "../../utils/supabase/client";
 
 export function LoginForm({
   redirectTo = "/catalog",
-  adminEmails = [],
+  adminPortalEmails = [],
 }: {
   redirectTo?: string;
-  adminEmails?: readonly string[];
+  adminPortalEmails?: readonly string[];
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -35,9 +35,9 @@ export function LoginForm({
       return;
     }
 
-    const isAdmin = adminEmails.includes(email.trim().toLowerCase());
+    const isAdminPortalUser = adminPortalEmails.includes(email.trim().toLowerCase());
 
-    router.push(isAdmin ? "/admin" : redirectTo);
+    router.push(isAdminPortalUser ? "/admin" : redirectTo);
     router.refresh();
   }
 
