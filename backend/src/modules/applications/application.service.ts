@@ -6,6 +6,7 @@ import {
   type UploadedApplicationDocument,
 } from "./application-document.service.js";
 import { prisma } from "../../db/prisma.js";
+import { resolveAdminPortalRoleByEmail } from "../admin-portal/admin-portal.service.js";
 import type {
   AccountApplicationRecord,
   CreateAccountApplicationInput,
@@ -268,6 +269,15 @@ export async function reviewAccountApplication(
   applicationId: string,
   input: ReviewAccountApplicationInput,
 ) {
+  const reviewerEmail = input.reviewedByEmail.trim().toLowerCase();
+  const reviewerRole = await resolveAdminPortalRoleByEmail(reviewerEmail);
+  const assignedSalesRepEmail =
+    input.status !== "APPROVED"
+      ? null
+      : reviewerRole === "sales_rep"
+        ? reviewerEmail
+        : normalizeOptionalString(input.assignedSalesRepEmail);
+
   return (getAccountApplicationModel().update({
     where: {
       id: applicationId,
@@ -275,11 +285,8 @@ export async function reviewAccountApplication(
     data: {
       status: input.status,
       deniedReason: input.status === "DENIED" ? normalizeOptionalString(input.deniedReason) : null,
-      reviewedByEmail: input.reviewedByEmail.trim().toLowerCase(),
-      assignedSalesRepEmail:
-        input.status === "APPROVED"
-          ? normalizeOptionalString(input.assignedSalesRepEmail)
-          : null,
+      reviewedByEmail: reviewerEmail,
+      assignedSalesRepEmail,
       reviewedAt: new Date(),
       publicEditToken: input.status === "DENIED" ? randomUUID() : null,
       publicRegistrationToken: input.status === "APPROVED" ? randomUUID() : null,

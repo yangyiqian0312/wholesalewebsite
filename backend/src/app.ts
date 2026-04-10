@@ -2,6 +2,7 @@ import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import Fastify from "fastify";
 import { config } from "./config.js";
+import { registerAdminPortalRoutes } from "./modules/admin-portal/admin-portal.routes.js";
 import { registerApplicationRoutes } from "./modules/applications/application.routes.js";
 import { registerOrderRoutes } from "./modules/orders/order.routes.js";
 import { registerProductRoutes } from "./modules/products/product.routes.js";
@@ -32,6 +33,7 @@ export function buildApp() {
 
   app.register(registerProductRoutes);
   app.register(registerProductSyncRoutes);
+  app.register(registerAdminPortalRoutes);
   app.register(registerApplicationRoutes);
   app.register(registerOrderRoutes);
 

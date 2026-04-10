@@ -1,53 +1,8 @@
 import { redirect } from "next/navigation";
+import { getAdminApiToken, getBackendBaseUrl } from "./backend-api";
 import { createClient } from "./supabase/server";
 
 export type AdminPortalRole = "admin" | "sales_rep";
-
-export function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function getSalesRepEmails() {
-  return (process.env.SALES_REP_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function getAdminPortalEmails() {
-  return [...new Set([...getAdminEmails(), ...getSalesRepEmails()])];
-}
-
-export function isAdminEmail(email: string | null | undefined) {
-  if (!email) {
-    return false;
-  }
-
-  return getAdminEmails().includes(email.trim().toLowerCase());
-}
-
-export function isSalesRepEmail(email: string | null | undefined) {
-  if (!email) {
-    return false;
-  }
-
-  return getSalesRepEmails().includes(email.trim().toLowerCase());
-}
-
-export function getAdminPortalRole(email: string | null | undefined): AdminPortalRole | null {
-  if (isAdminEmail(email)) {
-    return "admin";
-  }
-
-  if (isSalesRepEmail(email)) {
-    return "sales_rep";
-  }
-
-  return null;
-}
 
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -58,6 +13,62 @@ export async function getCurrentUser() {
   return user;
 }
 
+export async function fetchAdminPortalRole(email: string | null | undefined): Promise<AdminPortalRole | null> {
+  const normalizedEmail = email?.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  const query = new URLSearchParams({
+    email: normalizedEmail,
+  });
+  const response = await fetch(
+    `${getBackendBaseUrl()}/api/admin/portal-users/resolve?${query.toString()}`,
+    {
+      headers: {
+        "x-admin-token": getAdminApiToken(),
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to resolve admin portal role: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as {
+    role?: AdminPortalRole | null;
+  };
+
+  return payload.role ?? null;
+}
+
+export async function fetchSalesRepEmails() {
+  const query = new URLSearchParams({
+    role: "sales_rep",
+  });
+  const response = await fetch(
+    `${getBackendBaseUrl()}/api/admin/portal-users?${query.toString()}`,
+    {
+      headers: {
+        "x-admin-token": getAdminApiToken(),
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch sales reps: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as Array<{
+    email: string;
+  }>;
+
+  return payload.map((item) => item.email.trim().toLowerCase());
+}
+
 export async function requireAdminPortalUser() {
   const user = await getCurrentUser();
 
@@ -65,7 +76,7 @@ export async function requireAdminPortalUser() {
     redirect("/login");
   }
 
-  const role = getAdminPortalRole(user.email);
+  const role = await fetchAdminPortalRole(user.email);
 
   if (!role) {
     redirect("/login");
@@ -84,7 +95,7 @@ export async function requireAdminUser() {
     redirect("/login");
   }
 
-  if (!isAdminEmail(user.email)) {
+  if ((await fetchAdminPortalRole(user.email)) !== "admin") {
     redirect("/login");
   }
 

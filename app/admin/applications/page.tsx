@@ -9,7 +9,7 @@ import {
   approveApplicationAction,
   denyApplicationAction,
 } from "../_lib/application-actions";
-import { getSalesRepEmails, requireAdminPortalUser, type AdminPortalRole } from "../../../utils/admin-auth";
+import { fetchSalesRepEmails, requireAdminPortalUser, type AdminPortalRole } from "../../../utils/admin-auth";
 
 const applicationTabs = [
   {
@@ -218,7 +218,7 @@ export default async function AdminApplicationsPage({
 }) {
   const user = await requireAdminPortalUser();
   const applications = await fetchAdminApplications();
-  const salesRepEmails = getSalesRepEmails();
+  const salesRepEmails = await fetchSalesRepEmails();
   const pendingApplications = applications.filter((application) => application.status === "PENDING");
   const approvedApplications = applications.filter((application) => application.status === "APPROVED");
   const rejectedApplications = applications.filter((application) => application.status === "DENIED");

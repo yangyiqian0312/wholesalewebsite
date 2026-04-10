@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "../../../components/auth/login-form";
-import { getAdminPortalEmails, getAdminPortalRole, getCurrentUser } from "../../../utils/admin-auth";
+import { fetchAdminPortalRole, getCurrentUser } from "../../../utils/admin-auth";
 
 export default async function AdminLoginPage({
   searchParams,
@@ -9,13 +9,12 @@ export default async function AdminLoginPage({
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await getCurrentUser();
-  const adminPortalEmails = getAdminPortalEmails();
   const resolvedSearchParams = (await searchParams) ?? {};
   const error = Array.isArray(resolvedSearchParams.error)
     ? resolvedSearchParams.error[0]
     : resolvedSearchParams.error;
 
-  if (user?.email && getAdminPortalRole(user.email)) {
+  if (user?.email && (await fetchAdminPortalRole(user.email))) {
     redirect("/admin");
   }
 
@@ -34,7 +33,7 @@ export default async function AdminLoginPage({
             <p className="login-error">This account is not authorized to access the admin portal.</p>
           ) : null}
 
-          <LoginForm adminPortalEmails={adminPortalEmails} redirectTo="/admin" />
+          <LoginForm redirectTo="/admin" />
 
           <Link className="text-button login-back" href="/catalog">
             Back to Catalog
