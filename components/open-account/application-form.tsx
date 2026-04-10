@@ -313,6 +313,8 @@ export function OpenAccountForm({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const isEditingDeniedApplication = Boolean(editableApplication);
+  const isSuccessState = initialStatus === "submitted" || initialStatus === "resubmitted";
+  const isInvalidLinkState = initialStatus === "invalid-link";
 
   const successBanner = useMemo(() => {
     if (initialStatus === "submitted") {
@@ -325,6 +327,24 @@ export function OpenAccountForm({
 
     return null;
   }, [initialStatus]);
+
+  if (isSuccessState) {
+    return (
+      <section className="panel status-banner status-banner-success">
+        <strong>{initialStatus === "resubmitted" ? "Application resubmitted." : "Application submitted."}</strong>
+        <span>{successBanner}</span>
+      </section>
+    );
+  }
+
+  if (isInvalidLinkState) {
+    return (
+      <section className="panel status-banner status-banner-error">
+        <strong>Application link is invalid.</strong>
+        <span>This edit link is no longer available. Please contact support if you still need help.</span>
+      </section>
+    );
+  }
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setFormState((current) => ({
@@ -472,20 +492,6 @@ export function OpenAccountForm({
         <section className="panel status-banner status-banner-error">
           <strong>Previous application denied.</strong>
           <span>{editableApplication.deniedReason}</span>
-        </section>
-      ) : null}
-
-      {successBanner ? (
-        <section className="panel status-banner status-banner-success">
-          <strong>{initialStatus === "resubmitted" ? "Application resubmitted." : "Application submitted."}</strong>
-          <span>{successBanner}</span>
-        </section>
-      ) : null}
-
-      {initialStatus === "invalid-link" ? (
-        <section className="panel status-banner status-banner-error">
-          <strong>Application link is invalid.</strong>
-          <span>This edit link is no longer available. Please contact support if you still need help.</span>
         </section>
       ) : null}
 

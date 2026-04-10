@@ -2,19 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { createClient } from "../../utils/supabase/client";
 
 export function RegisterForm({
-  backendBaseUrl,
   registrationToken,
   approvedEmail,
 }: {
-  backendBaseUrl: string;
   registrationToken: string;
   approvedEmail: string;
 }) {
   const router = useRouter();
-  const supabase = createClient();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,26 +34,17 @@ export function RegisterForm({
 
     setIsSubmitting(true);
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: approvedEmail,
-      password,
-    });
-
-    if (signUpError) {
-      setIsSubmitting(false);
-      setError(signUpError.message);
-      return;
-    }
-
     const completionResponse = await fetch(
-      `${backendBaseUrl}/api/account-applications/register/${registrationToken}/complete`,
+      "/api/auth/register-approved",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          registrationToken,
           email: approvedEmail,
+          password,
         }),
       },
     );
@@ -79,7 +66,7 @@ export function RegisterForm({
       return;
     }
 
-    setSuccess("Account created. Please check your email for any confirmation step, then log in.");
+    setSuccess("Account created. You can log in now.");
     router.push("/login");
     router.refresh();
   }

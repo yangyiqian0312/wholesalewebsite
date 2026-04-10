@@ -74,7 +74,6 @@ export default async function RegisterPage({
               </p>
               <RegisterForm
                 approvedEmail={invite.email}
-                backendBaseUrl={getBackendBaseUrl()}
                 registrationToken={token}
               />
             </>
