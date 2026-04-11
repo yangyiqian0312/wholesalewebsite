@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 export type AccountOrder = {
@@ -94,7 +95,7 @@ function getOrderStatusMeta(status: AccountOrder["status"]) {
     case "SUBMITTED":
       return { label: "Submitted", className: "status-warning-soft" };
     case "APPROVED":
-      return { label: "Approved", className: "status-info" };
+      return { label: "Open", className: "status-info" };
     case "PAID":
       return { label: "Paid", className: "status-success" };
     case "SHIPPED":
@@ -105,8 +106,10 @@ function getOrderStatusMeta(status: AccountOrder["status"]) {
 }
 
 export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
+  const router = useRouter();
   const [currentOrders, setCurrentOrders] = useState(orders);
   const [feedbackByOrderId, setFeedbackByOrderId] = useState<Record<string, string>>({});
+  const [expandedByOrderId, setExpandedByOrderId] = useState<Record<string, boolean>>({});
   const [isPending, startTransition] = useTransition();
 
   function handleCancel(orderId: string) {
@@ -130,8 +133,31 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
         return;
       }
 
+      const updatedOrder = payload.order;
+
       setCurrentOrders((current) =>
-        current.map((order) => (order.id === orderId ? payload.order! : order)),
+        current.map((order) => {
+          if (order.id !== orderId) {
+            return order;
+          }
+
+          if (payload.action === "cancelled") {
+            return {
+              ...order,
+              ...updatedOrder,
+              status: "CANCELLED",
+              customerCancelRequestedAt: null,
+              customerCancelRequestedByEmail: null,
+              cancelledAt: updatedOrder.cancelledAt ?? new Date().toISOString(),
+            };
+          }
+
+          return {
+            ...order,
+            ...updatedOrder,
+            customerCancelRequestedAt: updatedOrder.customerCancelRequestedAt ?? new Date().toISOString(),
+          };
+        }),
       );
       setFeedbackByOrderId((current) => ({
         ...current,
@@ -140,6 +166,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
             ? "Order cancelled."
             : "Cancellation request sent to your sales rep.",
       }));
+      router.refresh();
     });
   }
 
@@ -150,7 +177,6 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
           <div>
             <p className="eyebrow">Account</p>
             <h1>Order History</h1>
-            <p className="profile-copy">Review orders submitted from this wholesale account.</p>
           </div>
         </div>
       </div>
@@ -159,6 +185,7 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
         {currentOrders.length ? currentOrders.map((order) => {
           const statusMeta = getOrderStatusMeta(order.status);
           const feedbackMessage = feedbackByOrderId[order.id];
+          const isExpanded = Boolean(expandedByOrderId[order.id]);
           const actionLabel = canCancelDirectly(order)
             ? "Cancel Order"
             : canRequestCancellation(order)
@@ -173,124 +200,235 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                     <strong>{order.inflowOrderNumber || order.inflowSalesOrderId || order.id}</strong>
                     <span className={`status-tag ${statusMeta.className}`}>{statusMeta.label}</span>
                   </div>
-                  <span>{formatProfileDate(order.submittedAt)}</span>
+                  <div className="profile-order-meta">
+                    <span>{formatProfileDate(order.submittedAt)}</span>
+                    <span>{order.lines.length} items</span>
+                  </div>
                 </div>
-                <strong>{formatCurrency(order.totalAmount)}</strong>
+                <div className="profile-order-head-side">
+                  <strong>{formatCurrency(order.totalAmount)}</strong>
+                  <div className="profile-order-head-controls">
+                    {actionLabel ? (
+                      <button
+                        className={`profile-order-head-action ${canCancelDirectly(order) ? "profile-order-head-action-danger" : ""}`}
+                        disabled={isPending || Boolean(order.customerCancelRequestedAt)}
+                        onClick={() => handleCancel(order.id)}
+                        type="button"
+                      >
+                        {order.customerCancelRequestedAt ? "Cancellation Requested" : actionLabel}
+                      </button>
+                    ) : null}
+                    <button
+                      aria-expanded={isExpanded}
+                      className="profile-order-toggle"
+                      onClick={() =>
+                        setExpandedByOrderId((current) => ({
+                          ...current,
+                          [order.id]: !current[order.id],
+                        }))
+                      }
+                      type="button"
+                    >
+                      <svg
+                        aria-hidden="true"
+                        className={isExpanded ? "profile-order-toggle-icon profile-order-toggle-icon-open" : "profile-order-toggle-icon"}
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          d="M5.25 7.5 10 12.25 14.75 7.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="1.8"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="profile-order-meta">
-                <span>{order.lines.length} items</span>
-              </div>
-
-              {order.customerCancelRequestedAt ? (
+              {isExpanded && order.customerCancelRequestedAt ? (
                 <div className="profile-order-note profile-order-cancel-note">
                   <span>Cancellation Requested</span>
                   <p>Your request has been sent to your sales rep and is waiting for review.</p>
                 </div>
               ) : null}
 
-              <div className="table-scroll profile-order-table-scroll">
-                <table className="catalog-table profile-order-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Quantity</th>
-                      <th>Unit Price</th>
-                      <th>Discount</th>
-                      <th>Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              {isExpanded ? (
+                <>
+                  <div className="table-scroll profile-order-table-scroll">
+                    <table className="catalog-table profile-order-table">
+                      <thead>
+                        <tr>
+                          <th>Product</th>
+                          <th>Quantity</th>
+                          <th>Unit Price</th>
+                          <th>Discount</th>
+                          <th>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {order.lines.map((line) => {
+                          const showLineChange = shouldShowLineChange(order, line);
+
+                          return (
+                          <tr
+                            className={line.quantity === 0 && showLineChange ? "profile-order-line-removed" : showLineChange ? "profile-order-line-changed" : undefined}
+                            key={line.id}
+                          >
+                            <td data-label="Product">
+                              <strong>{line.productName || line.productCode || "Product"}</strong>
+                              <span>{line.productCode || "Submitted item"}</span>
+                              {line.quantity === 0 && showLineChange ? (
+                                <span className="profile-order-line-change-note">Removed by sales rep: out of stock</span>
+                              ) : showLineChange ? (
+                                <span className="profile-order-line-change-note">Updated by sales rep</span>
+                              ) : null}
+                            </td>
+                            <td data-label="Quantity">
+                              {showLineChange ? (
+                                <div className="profile-order-value-diff">
+                                  <span className="profile-order-value-previous">
+                                    {formatQuantity(line.submittedQuantity, line.salesUomName)}
+                                  </span>
+                                  <strong>{formatQuantity(line.quantity, line.salesUomName)}</strong>
+                                </div>
+                              ) : (
+                                formatQuantity(line.quantity, line.salesUomName)
+                              )}
+                            </td>
+                            <td data-label="Unit Price">
+                              {showLineChange ? (
+                                <div className="profile-order-value-diff">
+                                  <span className="profile-order-value-previous">
+                                    {formatCurrency(line.submittedOriginalUnitPrice || line.originalUnitPrice || line.unitPrice)}
+                                  </span>
+                                  <strong>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</strong>
+                                </div>
+                              ) : (
+                                formatCurrency(line.originalUnitPrice || line.unitPrice)
+                              )}
+                            </td>
+                            <td data-label="Discount">
+                              {showLineChange ? (
+                                <div className="profile-order-value-diff">
+                                  <span className="profile-order-value-previous">
+                                    {formatDiscount(line.submittedDiscountPercent)}
+                                  </span>
+                                  <strong>{formatDiscount(line.discountPercent)}</strong>
+                                </div>
+                              ) : (
+                                formatDiscount(line.discountPercent)
+                              )}
+                            </td>
+                            <td data-label="Subtotal">
+                              {showLineChange ? (
+                                <div className="profile-order-value-diff">
+                                  <span className="profile-order-value-previous">
+                                    {formatCurrency(line.submittedLineTotal)}
+                                  </span>
+                                  <strong>{formatCurrency(line.lineTotal)}</strong>
+                                </div>
+                              ) : (
+                                formatCurrency(line.lineTotal)
+                              )}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="profile-order-mobile-list">
                     {order.lines.map((line) => {
                       const showLineChange = shouldShowLineChange(order, line);
 
                       return (
-                      <tr
-                        className={line.quantity === 0 && showLineChange ? "profile-order-line-removed" : showLineChange ? "profile-order-line-changed" : undefined}
-                        key={line.id}
-                      >
-                        <td>
-                          <strong>{line.productName || line.productCode || "Product"}</strong>
-                          <span>{line.productCode || "Submitted item"}</span>
-                          {line.quantity === 0 && showLineChange ? (
-                            <span className="profile-order-line-change-note">Removed by sales rep: out of stock</span>
-                          ) : showLineChange ? (
-                            <span className="profile-order-line-change-note">Updated by sales rep</span>
-                          ) : null}
-                        </td>
-                        <td>
-                          {showLineChange ? (
-                            <div className="profile-order-value-diff">
-                              <span className="profile-order-value-previous">
-                                {formatQuantity(line.submittedQuantity, line.salesUomName)}
-                              </span>
+                        <article
+                          className={line.quantity === 0 && showLineChange ? "profile-order-mobile-card profile-order-line-removed" : showLineChange ? "profile-order-mobile-card profile-order-line-changed" : "profile-order-mobile-card"}
+                          key={`${line.id}-mobile`}
+                        >
+                          <div className="profile-order-mobile-product">
+                            <strong>{line.productName || line.productCode || "Product"}</strong>
+                            <span>{line.productCode || "Submitted item"}</span>
+                            {line.quantity === 0 && showLineChange ? (
+                              <span className="profile-order-line-change-note">Removed by sales rep: out of stock</span>
+                            ) : showLineChange ? (
+                              <span className="profile-order-line-change-note">Updated by sales rep</span>
+                            ) : null}
+                          </div>
+
+                          <div className="profile-order-mobile-row">
+                            <span>Quantity</span>
+                            {showLineChange ? (
+                              <div className="profile-order-value-diff">
+                                <span className="profile-order-value-previous">
+                                  {formatQuantity(line.submittedQuantity, line.salesUomName)}
+                                </span>
+                                <strong>{formatQuantity(line.quantity, line.salesUomName)}</strong>
+                              </div>
+                            ) : (
                               <strong>{formatQuantity(line.quantity, line.salesUomName)}</strong>
-                            </div>
-                          ) : (
-                            formatQuantity(line.quantity, line.salesUomName)
-                          )}
-                        </td>
-                        <td>
-                          {showLineChange ? (
-                            <div className="profile-order-value-diff">
-                              <span className="profile-order-value-previous">
-                                {formatCurrency(line.submittedOriginalUnitPrice || line.originalUnitPrice || line.unitPrice)}
-                              </span>
+                            )}
+                          </div>
+
+                          <div className="profile-order-mobile-row">
+                            <span>Unit Price</span>
+                            {showLineChange ? (
+                              <div className="profile-order-value-diff">
+                                <span className="profile-order-value-previous">
+                                  {formatCurrency(line.submittedOriginalUnitPrice || line.originalUnitPrice || line.unitPrice)}
+                                </span>
+                                <strong>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</strong>
+                              </div>
+                            ) : (
                               <strong>{formatCurrency(line.originalUnitPrice || line.unitPrice)}</strong>
-                            </div>
-                          ) : (
-                            formatCurrency(line.originalUnitPrice || line.unitPrice)
-                          )}
-                        </td>
-                        <td>
-                          {showLineChange ? (
-                            <div className="profile-order-value-diff">
-                              <span className="profile-order-value-previous">
-                                {formatDiscount(line.submittedDiscountPercent)}
-                              </span>
+                            )}
+                          </div>
+
+                          <div className="profile-order-mobile-row">
+                            <span>Discount</span>
+                            {showLineChange ? (
+                              <div className="profile-order-value-diff">
+                                <span className="profile-order-value-previous">
+                                  {formatDiscount(line.submittedDiscountPercent)}
+                                </span>
+                                <strong>{formatDiscount(line.discountPercent)}</strong>
+                              </div>
+                            ) : (
                               <strong>{formatDiscount(line.discountPercent)}</strong>
-                            </div>
-                          ) : (
-                            formatDiscount(line.discountPercent)
-                          )}
-                        </td>
-                        <td>
-                          {showLineChange ? (
-                            <div className="profile-order-value-diff">
-                              <span className="profile-order-value-previous">
-                                {formatCurrency(line.submittedLineTotal)}
-                              </span>
+                            )}
+                          </div>
+
+                          <div className="profile-order-mobile-row profile-order-mobile-row-total">
+                            <span>Subtotal</span>
+                            {showLineChange ? (
+                              <div className="profile-order-value-diff">
+                                <span className="profile-order-value-previous">
+                                  {formatCurrency(line.submittedLineTotal)}
+                                </span>
+                                <strong>{formatCurrency(line.lineTotal)}</strong>
+                              </div>
+                            ) : (
                               <strong>{formatCurrency(line.lineTotal)}</strong>
-                            </div>
-                          ) : (
-                            formatCurrency(line.lineTotal)
-                          )}
-                        </td>
-                      </tr>
+                            )}
+                          </div>
+                        </article>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </>
+              ) : null}
 
-              {actionLabel ? (
-                <div className="profile-order-actions">
-                  <button
-                    className={`text-button ${canCancelDirectly(order) ? "text-button-danger" : ""}`}
-                    disabled={isPending || Boolean(order.customerCancelRequestedAt)}
-                    onClick={() => handleCancel(order.id)}
-                    type="button"
-                  >
-                    {order.customerCancelRequestedAt ? "Cancellation Requested" : actionLabel}
-                  </button>
-                  {feedbackMessage ? <span className="profile-order-action-feedback">{feedbackMessage}</span> : null}
-                </div>
-              ) : feedbackMessage ? (
+              {isExpanded && feedbackMessage ? (
                 <div className="profile-order-actions">
                   <span className="profile-order-action-feedback">{feedbackMessage}</span>
                 </div>
               ) : null}
 
+              {isExpanded ? (
               <div className="profile-order-summary">
                 <div className="profile-order-summary-row">
                   <span>Subtotal</span>
@@ -319,8 +457,9 @@ export function OrderHistoryPanel({ orders }: { orders: AccountOrder[] }) {
                   <strong>{formatCurrency(order.totalAmount)}</strong>
                 </div>
               </div>
+              ) : null}
 
-              {order.salesRepNote ? (
+              {isExpanded && order.salesRepNote ? (
                 <div className="profile-order-note">
                   <span>Sales Rep Notes</span>
                   <p>{order.salesRepNote}</p>

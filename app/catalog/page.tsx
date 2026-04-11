@@ -219,12 +219,14 @@ function CatalogTable({
   canSeePrice,
   searchTerm,
   selectedCategory,
+  unavailable,
 }: {
   products: readonly Product[];
   pagination: CatalogPagination;
   canSeePrice: boolean;
   searchTerm?: string;
   selectedCategory?: CatalogCategoryValue;
+  unavailable?: boolean;
 }) {
   const visibleStart = pagination.totalItems === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const visibleEnd = Math.min(pagination.page * pagination.pageSize, pagination.totalItems);
@@ -258,35 +260,43 @@ function CatalogTable({
       </div>
 
       <div className="table-scroll">
-        <table className="catalog-table">
-          <colgroup>
-            <col className="col-image" />
-            <col className="col-upc" />
-            <col className="col-name" />
-            <col className="col-price" />
-            <col className="col-quantity" />
-            <col className="col-release" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>UPC</th>
-              <th>Name</th>
-              <th>Your Price</th>
-              <th>Quantity</th>
-              <th>Release Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <ProductRow canSeePrice={canSeePrice} key={product.code} product={product} />
-            ))}
-          </tbody>
-        </table>
+        {unavailable ? (
+          <div className="admin-table-empty">Catalog is temporarily unavailable. Please try again in a moment.</div>
+        ) : products.length ? (
+          <table className="catalog-table">
+            <colgroup>
+              <col className="col-image" />
+              <col className="col-upc" />
+              <col className="col-name" />
+              <col className="col-price" />
+              <col className="col-quantity" />
+              <col className="col-release" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>UPC</th>
+                <th>Name</th>
+                <th>Your Price</th>
+                <th>Quantity</th>
+                <th>Release Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <ProductRow canSeePrice={canSeePrice} key={product.code} product={product} />
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="admin-table-empty">No products matched this catalog view.</div>
+        )}
       </div>
 
       <div className="pagination">
-        <div className="results-meta">Showing live products from the local catalog database</div>
+        <div className="results-meta">
+          {unavailable ? "Live catalog data is currently unavailable" : "Showing live products from the local catalog database"}
+        </div>
         <div className="pagination-controls">
           {pagination.page > 1 ? (
             <Link className="page-button" href={buildPageHref(pagination.page - 1)}>
@@ -295,7 +305,7 @@ function CatalogTable({
           ) : (
             <span className="page-button disabled">Prev</span>
           )}
-          {paginationItems.map((page) => (
+          {!unavailable ? paginationItems.map((page) => (
             <Link
               className={page === pagination.page ? "page-button active" : "page-button"}
               href={buildPageHref(page)}
@@ -303,8 +313,8 @@ function CatalogTable({
             >
               {page}
             </Link>
-          ))}
-          {pagination.page < pagination.totalPages ? (
+          )) : null}
+          {!unavailable && pagination.page < pagination.totalPages ? (
             <Link className="page-button" href={buildPageHref(pagination.page + 1)}>
               Next
             </Link>
@@ -340,7 +350,7 @@ export default async function CatalogPage({
     categoryParam && isCatalogCategoryValue(categoryParam) ? categoryParam : undefined;
   const smart = smartParam?.trim() || undefined;
   const page = Math.max(1, Number(pageParam || "1") || 1);
-  const [{ items: products, pagination }, categoryOptions] = await Promise.all([
+  const [{ items: products, pagination, unavailable }, categoryOptions] = await Promise.all([
     getCatalogProducts({ page, pageSize: 20, category: selectedCategory, smart }),
     getCatalogCategoryOptions({ smart }),
   ]);
@@ -366,6 +376,7 @@ export default async function CatalogPage({
             products={products}
             searchTerm={smart}
             selectedCategory={selectedCategory}
+            unavailable={unavailable}
           />
         </section>
       </main>

@@ -1,6 +1,4 @@
 import {
-  fallbackCatalogProducts,
-  filterSellableCatalogProducts,
   mapInflowProductToCatalogRow,
 } from "./catalog-mappers";
 import type {
@@ -9,66 +7,22 @@ import type {
   CatalogProductsResult,
 } from "./catalog-types";
 import {
-  catalogCategoryRules,
-  getCatalogCategoryFromSku,
   isCatalogCategoryValue,
 } from "../../utils/catalog-categories";
 import { getBackendBaseUrl } from "../../utils/backend-api";
 
 const backendBaseUrl = getBackendBaseUrl();
 
-function normalizeSearchTerm(value?: string) {
-  return value?.trim().toLowerCase() ?? "";
-}
-
-function matchesSearch(product: CatalogProductRow, smart?: string) {
-  const normalizedSearch = normalizeSearchTerm(smart);
-
-  if (!normalizedSearch) {
-    return true;
-  }
-
-  const haystack = [product.name, product.sku, product.upc, product.code, ...product.tags]
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(normalizedSearch);
-}
-
-function filterFallbackProducts({
-  category,
-  smart,
-}: {
-  category?: string;
-  smart?: string;
-}) {
-  return filterSellableCatalogProducts(fallbackCatalogProducts()).filter((product) => {
-    const matchesCategory = category && isCatalogCategoryValue(category)
-      ? getCatalogCategoryFromSku(product.sku) === category
-      : true;
-
-    return matchesCategory && matchesSearch(product, smart);
-  });
-}
-
-function buildFallbackPagination(
-  items: readonly CatalogProductRow[],
-  page: number,
-  pageSize: number,
-): CatalogProductsResult {
-  const totalItems = items.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const currentPage = Math.min(Math.max(1, page), totalPages);
-  const startIndex = (currentPage - 1) * pageSize;
-
+function buildUnavailablePagination(page: number, pageSize: number): CatalogProductsResult {
   return {
-    items: items.slice(startIndex, startIndex + pageSize),
+    items: [],
     pagination: {
-      page: currentPage,
+      page: Math.max(1, page),
       pageSize,
-      totalItems,
-      totalPages,
+      totalItems: 0,
+      totalPages: 1,
     },
+    unavailable: true,
   };
 }
 
@@ -125,9 +79,10 @@ export async function getCatalogProducts({
     return {
       items: mappedProducts,
       pagination: payload.pagination,
+      unavailable: false,
     };
   } catch {
-    return buildFallbackPagination(filterFallbackProducts({ category, smart }), page, pageSize);
+    return buildUnavailablePagination(page, pageSize);
   }
 }
 
@@ -163,43 +118,22 @@ export async function getCatalogCategoryOptions({
 
     return payload.categories;
   } catch {
-    const filteredProducts = filterFallbackProducts({ smart });
-
-    return catalogCategoryRules
-      .map((rule) => ({
-        value: rule.value,
-        label: rule.label,
-        count: filteredProducts.filter((product) => getCatalogCategoryFromSku(product.sku) === rule.value)
-          .length,
-      }))
-      .filter((option) => option.count > 0);
+    return [];
   }
 }
 
 export async function getCatalogProduct(productId: string): Promise<CatalogProductRow> {
-  try {
-    const response = await fetch(`${backendBaseUrl}/api/catalog/products/${productId}`, {
-      cache: "no-store",
-    });
+  const response = await fetch(`${backendBaseUrl}/api/catalog/products/${productId}`, {
+    cache: "no-store",
+  });
 
-    if (!response.ok) {
-      throw new Error(`Catalog product request failed: ${response.status}`);
-    }
-
-    const product = (await response.json()) as Record<string, unknown>;
-
-    return mapInflowProductToCatalogRow(
-      product as Parameters<typeof mapInflowProductToCatalogRow>[0],
-    );
-  } catch {
-    const fallbackProduct = fallbackCatalogProducts().find(
-      (product) => product.sku === productId || product.code === productId,
-    );
-
-    if (!fallbackProduct) {
-      throw new Error(`Catalog product request failed: fallback product not found for ${productId}`);
-    }
-
-    return fallbackProduct;
+  if (!response.ok) {
+    throw new Error(`Catalog product request failed: ${response.status}`);
   }
+
+  const product = (await response.json()) as Record<string, unknown>;
+
+  return mapInflowProductToCatalogRow(
+    product as Parameters<typeof mapInflowProductToCatalogRow>[0],
+  );
 }

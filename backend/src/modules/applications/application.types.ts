@@ -45,9 +45,12 @@ export const updateAccountProfileSchema = z.object({
   website: z.string().trim().optional().or(z.literal("")),
   storeMarketplaceLink: z.string().trim().optional().or(z.literal("")),
   businessModel: z.string().trim().min(1),
+  salesChannels: z.array(z.string().trim().min(1)).default([]),
   physicalStoreAddress: z.string().trim().optional().or(z.literal("")),
   onlineChannelNotes: z.string().trim().optional().or(z.literal("")),
+  productInterests: z.array(z.string().trim().min(1)).default([]),
   expectedPurchaseVolume: z.string().trim().min(1),
+  hasResellerPermitOrTaxId: z.boolean(),
 });
 
 export type CreateAccountApplicationInput = z.infer<typeof createAccountApplicationSchema>;

@@ -318,12 +318,12 @@ export default async function AdminListingsPage({
                   <input defaultValue={listing.name} name={`name:${listing.productId}`} />
                 </label>
 
-                <div className="admin-listing-static-field">
+                <div className="admin-listing-static-field admin-listing-readonly-field">
                   <span>SKU</span>
                   <strong>{listing.sku || "N/A"}</strong>
                 </div>
 
-                <div className="admin-listing-static-field">
+                <div className="admin-listing-static-field admin-listing-readonly-field">
                   <span>UPC</span>
                   <strong>{listing.upc || listing.barcode || "N/A"}</strong>
                 </div>
@@ -337,7 +337,7 @@ export default async function AdminListingsPage({
                   />
                 </label>
 
-                <div className="admin-listing-inline-value-field admin-listing-market-price-field">
+                <div className="admin-listing-inline-value-field admin-listing-market-price-field admin-listing-readonly-field">
                   <span>Market Price</span>
                   <strong>{formatPriceLabel(listing.marketPrice)}</strong>
                 </div>

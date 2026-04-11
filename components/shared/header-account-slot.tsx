@@ -61,8 +61,7 @@ export function HeaderAccountSlot() {
         <UserIcon />
       </span>
       <span className="header-action-copy">
-        <strong>Account</strong>
-        <small>Log In</small>
+        <strong>Log In</strong>
       </span>
     </Link>
   );

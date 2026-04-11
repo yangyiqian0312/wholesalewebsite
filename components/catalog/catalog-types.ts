@@ -37,4 +37,5 @@ export type CatalogPagination = {
 export type CatalogProductsResult = {
   items: readonly CatalogProductRow[];
   pagination: CatalogPagination;
+  unavailable?: boolean;
 };

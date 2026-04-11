@@ -202,9 +202,12 @@ export async function updateApprovedRegisteredApplicationProfileByEmail(
         website: normalizeOptionalString(input.website),
         storeMarketplaceLink: normalizeOptionalString(input.storeMarketplaceLink),
         businessModel: input.businessModel.trim(),
+        salesChannels: input.salesChannels,
         physicalStoreAddress: normalizeOptionalString(input.physicalStoreAddress),
         onlineChannelNotes: normalizeOptionalString(input.onlineChannelNotes),
+        productInterests: input.productInterests,
         expectedPurchaseVolume: input.expectedPurchaseVolume.trim(),
+        hasResellerPermitOrTaxId: input.hasResellerPermitOrTaxId,
         ...(shouldReplaceDocuments
           ? {
               uploadedDocumentNames: newlyStoredDocuments.map((document) => document.originalFilename),

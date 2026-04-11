@@ -78,7 +78,6 @@ export function HeaderAccountMenu({ email, displayName }: HeaderAccountMenuProps
         </span>
         <span className="header-action-copy">
           <strong>{displayName}</strong>
-          <small>Account</small>
         </span>
       </button>
 

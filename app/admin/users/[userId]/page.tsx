@@ -4,6 +4,7 @@ import {
   fetchAdminApplicationById,
   fetchAdminOrdersByApplicationId,
   formatAdminDate,
+  formatOrderStatusLabel,
 } from "../../_lib/admin-data";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 import { deleteUserAction } from "../../_lib/user-actions";
@@ -53,10 +54,6 @@ export default async function AdminUserDetailPage({
   }
 
   const orders = await fetchAdminOrdersByApplicationId(application.id);
-  const totalOrdered = orders
-    .reduce((sum, order) => sum + Number(order.subtotalAmount), 0)
-    .toFixed(2);
-
   return (
     <div className="admin-layout">
       {error === "delete-auth-failed" || error === "delete-record-failed" ? (
@@ -73,6 +70,7 @@ export default async function AdminUserDetailPage({
           <p className="admin-hero-copy">
             {application.businessName} | {application.email} | {application.phone}
           </p>
+          <p className="admin-hero-copy">Account ID: {application.accountNumber || "Pending"}</p>
         </div>
         <div className="admin-user-detail-actions">
           <Link className="text-button" href="/admin/users">
@@ -88,29 +86,6 @@ export default async function AdminUserDetailPage({
             </form>
           ) : null}
         </div>
-      </section>
-
-      <section className="admin-summary-grid">
-        <article className="panel admin-summary-card">
-          <span>Account ID</span>
-          <strong>{application.accountNumber || "Pending"}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Status</span>
-          <strong>{application.status}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Total Orders</span>
-          <strong>{orders.length}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Submitted Revenue</span>
-          <strong>${totalOrdered}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Sales Rep</span>
-          <strong>{application.assignedSalesRepEmail || "Unassigned"}</strong>
-        </article>
       </section>
 
       <section className="panel admin-application-card">
@@ -219,6 +194,7 @@ export default async function AdminUserDetailPage({
               <thead>
                 <tr>
                   <th>Order</th>
+                  <th>Status</th>
                   <th>Items</th>
                   <th>Subtotal</th>
                   <th>Submitted</th>
@@ -235,6 +211,7 @@ export default async function AdminUserDetailPage({
                       </Link>
                       <div className="value-sub">{order.source}</div>
                     </td>
+                    <td>{formatOrderStatusLabel(order.status)}</td>
                     <td>{order.lines.length}</td>
                     <td>${Number(order.subtotalAmount).toFixed(2)}</td>
                     <td>{formatAdminDate(order.submittedAt)}</td>

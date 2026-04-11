@@ -187,6 +187,7 @@ function validateForm(state: FormState): FieldErrors {
   if (!state.phone.trim()) errors.phone = "Phone is required.";
   if (!state.businessName.trim()) errors.businessName = "Business Name is required.";
   if (!state.businessType.trim()) errors.businessType = "Business Type is required.";
+  if (!state.businessModel.trim()) errors.businessModel = "Business Model is required.";
   if (!state.companyAddress.trim()) errors.companyAddress = "Company Address is required.";
   if (!state.city.trim()) errors.city = "City is required.";
   if (!state.stateProvince.trim()) errors.stateProvince = "State / Province is required.";
@@ -509,8 +510,8 @@ export function OpenAccountForm({
       zipPostalCode: formState.zipPostalCode.trim(),
       country: formState.country.trim(),
       website: normalizeOptionalString(formState.website),
-      storeMarketplaceLink: undefined,
-      businessModel: formState.salesChannels.join(", ") || "Not specified",
+      storeMarketplaceLink: normalizeOptionalString(formState.storeMarketplaceLink),
+      businessModel: formState.businessModel.trim(),
       salesChannels: formState.salesChannels,
       physicalStoreAddress: shippingAddressSameAsCompany
         ? undefined
@@ -717,6 +718,22 @@ export function OpenAccountForm({
           placeholder="https://yourstore.com or crossingcards.com"
           value={formState.website}
         />
+        <TextField
+          label="Store / Marketplace Link"
+          name="storeMarketplaceLink"
+          onChange={(value) => updateField("storeMarketplaceLink", value)}
+          placeholder="https://marketplace.example.com/your-store"
+          value={formState.storeMarketplaceLink}
+        />
+        <TextField
+          error={fieldErrors.businessModel}
+          label="Business Model"
+          name="businessModel"
+          onChange={(value) => updateField("businessModel", value)}
+          placeholder="Independent retail store, online seller, distributor, etc."
+          required
+          value={formState.businessModel}
+        />
         <div className="open-account-field open-account-field-full">
           <span>Shipping Address</span>
           <CheckboxField
@@ -790,7 +807,7 @@ export function OpenAccountForm({
         title="Business Operations"
       >
         <label className="open-account-field open-account-field-full">
-          <span>Type of Operation</span>
+          <span>Sales Channels</span>
           <div className="open-account-check-grid">
             {salesChannels.map((channel) => (
               <ChoicePill
@@ -804,7 +821,7 @@ export function OpenAccountForm({
         </label>
 
         <div className="open-account-field open-account-field-full">
-          <span>I Intend To Order</span>
+          <span>Product Interests</span>
           <div className="open-account-interest-grid">
             {interestOptions.map((interest) => (
               <ChoicePill
@@ -834,7 +851,7 @@ export function OpenAccountForm({
       >
         <SelectField
           error={fieldErrors.hasResellerPermitOrTaxId}
-          label="Do you have a state reseller permit or tax ID?"
+          label="Reseller Permit / Tax ID"
           name="hasResellerPermitOrTaxId"
           onChange={(value) => updateField("hasResellerPermitOrTaxId", value)}
           options={["Yes", "No"]}

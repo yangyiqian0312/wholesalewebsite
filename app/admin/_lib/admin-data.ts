@@ -99,7 +99,7 @@ export type AdminOrder = {
   customerEmail: string;
   customerName: string;
   businessName: string;
-  status: "SUBMITTED" | "APPROVED" | "PAID" | "CANCELLED";
+  status: "SUBMITTED" | "APPROVED" | "PAID" | "SHIPPED" | "CANCELLED";
   approvedByEmail: string | null;
   approvedAt: string | null;
   inflowSalesOrderId: string | null;
@@ -246,6 +246,21 @@ export async function fetchAdminOrderById(orderId: string) {
 export async function fetchAdminOrdersByApplicationId(applicationId: string) {
   const orders = await fetchAdminOrders();
   return orders.filter((order) => order.applicationId === applicationId);
+}
+
+export function formatOrderStatusLabel(status: AdminOrder["status"]) {
+  switch (status) {
+    case "SUBMITTED":
+      return "Submitted";
+    case "APPROVED":
+      return "Open";
+    case "PAID":
+      return "Paid";
+    case "SHIPPED":
+      return "Shipped";
+    default:
+      return "Cancelled";
+  }
 }
 
 export function formatAdminDate(value: string | null) {

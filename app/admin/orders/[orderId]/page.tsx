@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate } from "../../_lib/admin-data";
+import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate, formatOrderStatusLabel } from "../../_lib/admin-data";
 import { approveOrderAction, cancelOrderAction } from "../../_lib/order-actions";
 import { OrderApprovalEditor } from "../../../../components/admin/order-approval-editor";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
@@ -100,7 +100,7 @@ export default async function AdminOrderDetailPage({
       <section className="admin-summary-grid">
         <article className="panel admin-summary-card">
           <span>Status</span>
-          <strong>{order.status}</strong>
+          <strong>{formatOrderStatusLabel(order.status)}</strong>
         </article>
         <article className="panel admin-summary-card">
           <span>Submitted</span>
