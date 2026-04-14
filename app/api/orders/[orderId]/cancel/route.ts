@@ -55,6 +55,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           error: responseBody?.error ?? "Failed to update order cancellation",
+          code: responseBody?.code,
         },
         {
           status: response.status,

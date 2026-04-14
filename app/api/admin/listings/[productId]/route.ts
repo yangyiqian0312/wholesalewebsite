@@ -36,9 +36,9 @@ export async function PATCH(
     });
   }
 
-  if (typeof payload.name === "string" && payload.name.trim()) {
+  if ((typeof payload.name === "string" && payload.name.trim()) || payload.releaseDate !== undefined) {
     const inflowResponse = await fetch(
-      `${getBackendBaseUrl()}/api/admin/catalog/products/${productId}/sync-name-to-inflow`,
+      `${getBackendBaseUrl()}/api/admin/catalog/products/${productId}/sync-editable-fields-to-inflow`,
       {
         method: "POST",
         headers: {
@@ -47,21 +47,25 @@ export async function PATCH(
         },
         cache: "no-store",
         body: JSON.stringify({
-          name: payload.name.trim(),
+          ...(typeof payload.name === "string" && payload.name.trim() ? { name: payload.name.trim() } : {}),
+          ...(payload.releaseDate !== undefined ? { releaseDate: payload.releaseDate } : {}),
         }),
       },
     );
 
     if (!inflowResponse.ok) {
-      const inflowPayload = (await inflowResponse.json().catch(() => null)) as { error?: string } | null;
+      const inflowPayload = (await inflowResponse.json().catch(() => null)) as { error?: string; code?: string } | null;
       return Response.json(
         {
           error:
-            inflowPayload?.error ||
-            "Local save succeeded, but syncing the name to Inflow failed.",
+            inflowPayload?.code === "INFLOW_RATE_LIMIT"
+              ? "Saved locally, but the system is busy. Please try syncing again later."
+              : inflowPayload?.error ||
+                "Local save succeeded, but syncing the name to Inflow failed.",
+          code: inflowPayload?.code,
         },
         {
-          status: 502,
+          status: inflowPayload?.code === "INFLOW_RATE_LIMIT" ? 503 : 502,
         },
       );
     }

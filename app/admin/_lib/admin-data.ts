@@ -18,7 +18,6 @@ export type AccountApplication = {
   country: string;
   website: string | null;
   storeMarketplaceLink: string | null;
-  businessModel: string;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;

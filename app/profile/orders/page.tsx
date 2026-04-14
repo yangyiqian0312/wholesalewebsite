@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { OrderHistoryPanel, type AccountOrder } from "../../../components/account/order-history-panel";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../../components/shared/site-footer";
 import { SiteHeader } from "../../../components/shared/site-header";
 import { createClient } from "../../../utils/supabase/server";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../utils/backend-api";
@@ -39,9 +41,17 @@ export default async function ProfileOrdersPage() {
       <SiteHeader activePath="/catalog" />
 
       <main className="page-layout">
-        <div className="breadcrumbs">Home / Order History</div>
+        <PageBreadcrumbs
+          items={[
+            { href: "/", label: "Home" },
+            { href: "/profile", label: "Profile" },
+            { label: "Order History" },
+          ]}
+        />
         <OrderHistoryPanel orders={orders} />
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

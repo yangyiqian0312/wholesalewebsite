@@ -16,7 +16,6 @@ export type AccountProfile = {
   country: string;
   website: string | null;
   storeMarketplaceLink: string | null;
-  businessModel: string;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;
@@ -209,7 +208,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     country: profile.country,
     website: profile.website ?? "",
     storeMarketplaceLink: profile.storeMarketplaceLink ?? "",
-    businessModel: profile.businessModel,
     salesChannels: profile.salesChannels,
     shippingAddressee: shippingAddress.addressee,
     shippingStreetAddress: shippingAddress.streetAddress,
@@ -268,7 +266,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           country: formState.country.trim(),
           website: formState.website.trim(),
           storeMarketplaceLink: formState.storeMarketplaceLink.trim(),
-          businessModel: formState.businessModel.trim(),
           salesChannels: formState.salesChannels,
           physicalStoreAddress: shippingAddressSameAsCompany ? "" : buildShippingAddressValue(formState),
           onlineChannelNotes: formState.onlineChannelNotes.trim(),
@@ -346,7 +343,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <div className="profile-grid">
             <Field label="Business Name" onChange={(value) => updateField("businessName", value)} value={formState.businessName} />
             <Field label="Type of Ownership" onChange={(value) => updateField("businessType", value)} value={formState.businessType} />
-            <Field label="Business Model" onChange={(value) => updateField("businessModel", value)} value={formState.businessModel} />
             <Field
               label="Expected Purchase Volume"
               onChange={(value) => updateField("expectedPurchaseVolume", value)}

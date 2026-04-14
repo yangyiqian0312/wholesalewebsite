@@ -18,7 +18,6 @@ type EditableApplication = {
   country: string;
   website: string | null;
   storeMarketplaceLink: string | null;
-  businessModel: string;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;
@@ -77,7 +76,6 @@ type FormState = {
   country: string;
   website: string;
   storeMarketplaceLink: string;
-  businessModel: string;
   salesChannels: string[];
   shippingAddressee: string;
   shippingStreetAddress: string;
@@ -161,7 +159,6 @@ function buildInitialState(defaults: EditableApplication | null | undefined): Fo
     country: defaults?.country ?? "",
     website: defaults?.website ?? "",
     storeMarketplaceLink: defaults?.storeMarketplaceLink ?? "",
-    businessModel: defaults?.businessModel ?? "",
     salesChannels: defaults?.salesChannels ?? [],
     shippingAddressee: shippingAddress.addressee,
     shippingStreetAddress: shippingAddress.streetAddress,
@@ -187,7 +184,6 @@ function validateForm(state: FormState): FieldErrors {
   if (!state.phone.trim()) errors.phone = "Phone is required.";
   if (!state.businessName.trim()) errors.businessName = "Business Name is required.";
   if (!state.businessType.trim()) errors.businessType = "Business Type is required.";
-  if (!state.businessModel.trim()) errors.businessModel = "Business Model is required.";
   if (!state.companyAddress.trim()) errors.companyAddress = "Company Address is required.";
   if (!state.city.trim()) errors.city = "City is required.";
   if (!state.stateProvince.trim()) errors.stateProvince = "State / Province is required.";
@@ -511,7 +507,6 @@ export function OpenAccountForm({
       country: formState.country.trim(),
       website: normalizeOptionalString(formState.website),
       storeMarketplaceLink: normalizeOptionalString(formState.storeMarketplaceLink),
-      businessModel: formState.businessModel.trim(),
       salesChannels: formState.salesChannels,
       physicalStoreAddress: shippingAddressSameAsCompany
         ? undefined
@@ -724,15 +719,6 @@ export function OpenAccountForm({
           onChange={(value) => updateField("storeMarketplaceLink", value)}
           placeholder="https://marketplace.example.com/your-store"
           value={formState.storeMarketplaceLink}
-        />
-        <TextField
-          error={fieldErrors.businessModel}
-          label="Business Model"
-          name="businessModel"
-          onChange={(value) => updateField("businessModel", value)}
-          placeholder="Independent retail store, online seller, distributor, etc."
-          required
-          value={formState.businessModel}
         />
         <div className="open-account-field open-account-field-full">
           <span>Shipping Address</span>

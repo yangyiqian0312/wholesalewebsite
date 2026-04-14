@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { config } from "../../config.js";
+import { INFLOW_RATE_LIMIT_MESSAGE, isInflowRateLimitError } from "../../integrations/inflow/client.js";
 import {
   fetchCatalogCategoryCountsFromDatabase,
   fetchCatalogProductByInflowIdFromDatabase,
@@ -9,7 +10,8 @@ import {
   updateCatalogProductInDatabase,
 } from "./catalog-product.service.js";
 import { updateCatalogProductSchema } from "./admin-product.types.js";
-import { fetchProducts, upsertInflowProduct } from "./product.service.js";
+import { fetchInflowProductById, fetchProducts, upsertInflowProduct } from "./product.service.js";
+import { formatReleaseDateForInflow, normalizeReleaseDateForStorage } from "./release-date.js";
 import { isCatalogCategoryValue } from "./catalog-category-rules.js";
 
 const booleanQueryParam = z
@@ -41,6 +43,33 @@ const productQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   pageSize: z.coerce.number().int().positive().optional().default(20),
 });
+
+const syncEditableInflowProductSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  releaseDate: z.string().trim().optional().nullable(),
+});
+
+function buildEditableInflowProductPayload(
+  basePayload: Record<string, unknown>,
+  productId: string,
+  editableFields: { name?: string; releaseDate?: string | null },
+) {
+  return {
+    ...basePayload,
+    productId,
+    ...(editableFields.name ? { name: editableFields.name } : {}),
+    customFields: {
+      ...((basePayload.customFields &&
+      typeof basePayload.customFields === "object" &&
+      !Array.isArray(basePayload.customFields))
+        ? (basePayload.customFields as Record<string, unknown>)
+        : {}),
+      ...(editableFields.releaseDate !== undefined
+        ? { custom1: formatReleaseDateForInflow(editableFields.releaseDate) }
+        : {}),
+    },
+  };
+}
 
 export async function registerProductRoutes(app: FastifyInstance) {
   function isAuthorizedAdminRequest(request: FastifyRequest) {
@@ -105,7 +134,12 @@ export async function registerProductRoutes(app: FastifyInstance) {
     }
 
     try {
-      const product = await updateCatalogProductInDatabase(productId.data, parsedBody.data);
+      const product = await updateCatalogProductInDatabase(productId.data, {
+        ...parsedBody.data,
+        ...(parsedBody.data.releaseDate !== undefined
+          ? { releaseDate: normalizeReleaseDateForStorage(parsedBody.data.releaseDate) }
+          : {}),
+      });
       return reply.send(product);
     } catch (error) {
       request.log.error(error);
@@ -116,7 +150,7 @@ export async function registerProductRoutes(app: FastifyInstance) {
     }
   });
 
-  app.post("/api/admin/catalog/products/:productId/sync-name-to-inflow", async (request, reply) => {
+  app.post("/api/admin/catalog/products/:productId/sync-editable-fields-to-inflow", async (request, reply) => {
     if (!isAuthorizedAdminRequest(request)) {
       return reply.status(401).send({
         error: "Unauthorized",
@@ -126,11 +160,7 @@ export async function registerProductRoutes(app: FastifyInstance) {
     const productId = z.string().min(1).safeParse(
       (request.params as { productId?: string }).productId,
     );
-    const name = z
-      .object({
-        name: z.string().trim().min(1),
-      })
-      .safeParse(request.body);
+    const editableFields = syncEditableInflowProductSchema.safeParse(request.body);
 
     if (!productId.success) {
       return reply.status(400).send({
@@ -138,10 +168,10 @@ export async function registerProductRoutes(app: FastifyInstance) {
       });
     }
 
-    if (!name.success) {
+    if (!editableFields.success || (!editableFields.data.name && editableFields.data.releaseDate === undefined)) {
       return reply.status(400).send({
-        error: "Invalid product name payload",
-        details: name.error.flatten(),
+        error: "Invalid product sync payload",
+        details: editableFields.success ? undefined : editableFields.error.flatten(),
       });
     }
 
@@ -161,15 +191,40 @@ export async function registerProductRoutes(app: FastifyInstance) {
           ? (localProduct.rawPayload as Record<string, unknown>)
           : {};
 
-      const product = await upsertInflowProduct({
-        ...basePayload,
-        productId: localProduct.productId,
-        name: name.data.name,
-      });
+      let product;
+
+      try {
+        product = await upsertInflowProduct(
+          buildEditableInflowProductPayload(basePayload, localProduct.productId, editableFields.data),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+
+        if (!message.includes("entity_modified")) {
+          throw error;
+        }
+
+        const inflowProduct = await fetchInflowProductById(localProduct.productId);
+        const latestPayload =
+          inflowProduct && typeof inflowProduct === "object" && !Array.isArray(inflowProduct)
+            ? (inflowProduct as unknown as Record<string, unknown>)
+            : {};
+
+        product = await upsertInflowProduct(
+          buildEditableInflowProductPayload(latestPayload, localProduct.productId, editableFields.data),
+        );
+      }
 
       return reply.send(product);
     } catch (error) {
       request.log.error(error);
+
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
 
       return reply.status(502).send({
         error: error instanceof Error ? error.message : "Failed to sync product name to Inflow",
@@ -241,6 +296,13 @@ export async function registerProductRoutes(app: FastifyInstance) {
       return reply.send(products);
     } catch (error) {
       request.log.error(error);
+
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
 
       return reply.status(502).send({
         error: "Failed to fetch products from Inflow",

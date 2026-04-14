@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { inflowRequest } from "../../integrations/inflow/client.js";
 import { fetchProducts } from "./product.service.js";
+import { normalizeReleaseDateForStorage } from "./release-date.js";
 import type {
   InflowPricingScheme,
   InflowPricingSchemeListResponse,
@@ -11,6 +12,7 @@ import type {
 const SYNC_INCLUDE = "defaultPrice,prices,productBarcodes,inventoryLines.location,defaultImage";
 const PRIMARY_CATALOG_LOCATION = "152 Main";
 const PRICING_SCHEME_PAGE_SIZE = 100;
+const RELEASE_DATE_CUSTOM_FIELD_KEY = "custom1";
 
 export type ProductSyncStatus = "idle" | "running" | "success" | "error";
 
@@ -139,6 +141,13 @@ function getPrimaryLocationQuantity(product: InflowProduct) {
   return matchingLines.reduce((total, line) => total + parseQuantity(line.quantityOnHand), 0);
 }
 
+function getReleaseDateCustomField(product: InflowProduct) {
+  const value = product.customFields?.[RELEASE_DATE_CUSTOM_FIELD_KEY];
+  return typeof value === "string" && value.trim()
+    ? normalizeReleaseDateForStorage(value)
+    : null;
+}
+
 function mapProductForWrite(
   product: InflowProduct,
   pricingSchemeNamesById: Map<string, string>,
@@ -169,8 +178,7 @@ function mapProductForWrite(
     marketPrice: getPriceForScheme(product, pricingSchemeNamesById, "Market"),
     totalQuantityOnHand: getPrimaryLocationQuantity(product),
     isActive: false,
-    releaseDate:
-      typeof product.lastModifiedDateTime === "string" ? product.lastModifiedDateTime : null,
+    releaseDate: getReleaseDateCustomField(product),
     rawPayload: {
       ...(product as Prisma.InputJsonValue as Record<string, unknown>),
       ...(existingDescription !== undefined ? { description: existingDescription } : {}),

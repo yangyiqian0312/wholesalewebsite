@@ -15,7 +15,6 @@ export const createAccountApplicationSchema = z.object({
   country: z.string().trim().min(1),
   website: z.string().trim().optional().or(z.literal("")),
   storeMarketplaceLink: z.string().trim().optional().or(z.literal("")),
-  businessModel: z.string().trim().min(1),
   salesChannels: z.array(z.string().trim().min(1)).default([]),
   physicalStoreAddress: z.string().trim().optional().or(z.literal("")),
   onlineChannelNotes: z.string().trim().optional().or(z.literal("")),
@@ -44,7 +43,6 @@ export const updateAccountProfileSchema = z.object({
   country: z.string().trim().min(1),
   website: z.string().trim().optional().or(z.literal("")),
   storeMarketplaceLink: z.string().trim().optional().or(z.literal("")),
-  businessModel: z.string().trim().min(1),
   salesChannels: z.array(z.string().trim().min(1)).default([]),
   physicalStoreAddress: z.string().trim().optional().or(z.literal("")),
   onlineChannelNotes: z.string().trim().optional().or(z.literal("")),
@@ -84,7 +82,6 @@ export type AccountApplicationRecord = {
   country: string;
   website: string | null;
   storeMarketplaceLink: string | null;
-  businessModel: string;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;

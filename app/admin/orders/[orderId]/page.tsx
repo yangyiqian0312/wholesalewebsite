@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { fetchAdminApplicationById, fetchAdminOrderById, formatAdminDate, formatOrderStatusLabel } from "../../_lib/admin-data";
 import { approveOrderAction, cancelOrderAction } from "../../_lib/order-actions";
 import { OrderApprovalEditor } from "../../../../components/admin/order-approval-editor";
+import { PageBreadcrumbs } from "../../../../components/shared/page-breadcrumbs";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
 function DetailBlock({
@@ -82,6 +83,13 @@ export default async function AdminOrderDetailPage({
 
   return (
     <div className="admin-layout">
+      <PageBreadcrumbs
+        items={[
+          { href: "/admin", label: "Admin" },
+          { href: "/admin/orders", label: "Orders" },
+          { label: order.inflowOrderNumber || order.inflowSalesOrderId || order.id },
+        ]}
+      />
       <section className="admin-hero panel">
         <div>
           <p className="admin-hero-kicker">Order Detail</p>

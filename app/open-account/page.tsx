@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { OpenAccountForm } from "../../components/open-account/application-form";
+import { PageBreadcrumbs } from "../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../components/shared/site-footer";
 import { SiteHeader } from "../../components/shared/site-header";
 import { getBackendBaseUrl } from "../../utils/backend-api";
 
@@ -17,7 +19,6 @@ type EditableApplication = {
   country: string;
   website: string | null;
   storeMarketplaceLink: string | null;
-  businessModel: string;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;
@@ -74,6 +75,7 @@ export default async function OpenAccountPage({
       <SiteHeader activePath="/open-account" />
 
       <main className="page-layout open-account-layout">
+        <PageBreadcrumbs items={[{ href: "/", label: "Home" }, { label: "Open an Account" }]} />
         <section className="open-account-hero">
           <div>
             <h1>
@@ -91,6 +93,8 @@ export default async function OpenAccountPage({
           initialStatus={status}
         />
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

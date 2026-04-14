@@ -13,6 +13,7 @@ type AddToCartControlProps = {
   label?: string;
   controlClassName?: string;
   showFeedback?: boolean;
+  canAddToCart?: boolean;
 };
 
 function parseInputQuantity(value: string) {
@@ -34,6 +35,7 @@ export function AddToCartControl({
   label,
   controlClassName,
   showFeedback = true,
+  canAddToCart = true,
 }: AddToCartControlProps) {
   const { addItem, getItemQuantity, openDrawer } = useCart();
   const [quantity, setQuantity] = useState(defaultQuantity || "1");
@@ -62,6 +64,7 @@ export function AddToCartControl({
       {label ? <span>{label}</span> : null}
       <div className={controlClassName ?? "cart-control-inline"}>
         <input
+          disabled={!canAddToCart}
           className={inputClassName}
           inputMode="numeric"
           min="1"
@@ -72,6 +75,7 @@ export function AddToCartControl({
         />
         <button
           className={buttonClassName}
+          disabled={!canAddToCart}
           onClick={handleAddToCart}
           suppressHydrationWarning
           type="button"
@@ -81,7 +85,9 @@ export function AddToCartControl({
       </div>
       {showFeedback ? (
         <small className="cart-feedback">
-          {feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")}
+          {canAddToCart
+            ? feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")
+            : "Log in to add this item to your cart"}
         </small>
       ) : null}
     </div>

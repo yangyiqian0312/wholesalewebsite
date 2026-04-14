@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { ProfileForm, type AccountProfile } from "../../components/account/profile-form";
+import { PageBreadcrumbs } from "../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../components/shared/site-footer";
 import { SiteHeader } from "../../components/shared/site-header";
 import { createClient } from "../../utils/supabase/server";
 import { getAdminApiToken, getBackendBaseUrl } from "../../utils/backend-api";
@@ -47,9 +49,11 @@ export default async function ProfilePage() {
       <SiteHeader activePath="/catalog" />
 
       <main className="page-layout">
-        <div className="breadcrumbs">Home / Profile</div>
+        <PageBreadcrumbs items={[{ href: "/", label: "Home" }, { label: "Profile" }]} />
         <ProfileForm profile={profile} />
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

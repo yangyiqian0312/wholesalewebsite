@@ -16,7 +16,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function CartPageClient() {
+export function CartPageClient({ canSeePrice }: { canSeePrice: boolean }) {
   const { items, updateItemQuantity, removeItem, clearCart, itemCount } = useCart();
   const subtotal = items.reduce((total, item) => total + parsePrice(item.wholesale) * item.quantity, 0);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -63,6 +63,7 @@ export function CartPageClient() {
       const payload = (await response.json().catch(() => null)) as
         | {
             error?: string;
+            code?: string;
             localOrderId?: string | null;
             status?: string | null;
           }
@@ -79,7 +80,11 @@ export function CartPageClient() {
           : "Order submitted for review.",
       );
     } catch (error) {
-      setSubmitMessage(error instanceof Error ? error.message : "Failed to submit order");
+      setSubmitMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : "System busy. Please try again later.",
+      );
     } finally {
       setIsSubmittingOrder(false);
     }
@@ -135,11 +140,15 @@ export function CartPageClient() {
                 <div className="cart-line-price-summary">
                   <div className="cart-line-price-block">
                     <span className="cart-line-price-label">Unit Price</span>
-                    <strong className="cart-line-price">{formatCurrency(unitPrice)}</strong>
+                    <strong className="cart-line-price">
+                      {canSeePrice ? formatCurrency(unitPrice) : "Log in to see price"}
+                    </strong>
                   </div>
                   <div className="cart-line-price-block cart-line-total-block">
                     <span className="cart-line-price-label">Total</span>
-                    <strong className="cart-line-price">{formatCurrency(lineTotal)}</strong>
+                    <strong className="cart-line-price">
+                      {canSeePrice ? formatCurrency(lineTotal) : "Hidden until login"}
+                    </strong>
                   </div>
                 </div>
 
@@ -190,15 +199,23 @@ export function CartPageClient() {
         </div>
         <div className="cart-summary-row">
           <span>Subtotal</span>
-          <strong>{formatCurrency(subtotal)}</strong>
+          <strong>{canSeePrice ? formatCurrency(subtotal) : "Log in to see price"}</strong>
         </div>
         {submitMessage ? <p className="cart-summary-note">{submitMessage}</p> : null}
         <p className="cart-summary-note">
-          Submitted orders are reviewed by your sales rep before they are approved for payment.
+          {canSeePrice
+            ? "Submitted orders are reviewed by your sales rep before they are approved for payment."
+            : "Log in to view pricing and submit this order."}
         </p>
-        <button className="primary-button cart-summary-link" disabled={isSubmittingOrder} onClick={handleSubmitOrder} type="button">
-          {isSubmittingOrder ? "Submitting..." : "Submit Order"}
-        </button>
+        {canSeePrice ? (
+          <button className="primary-button cart-summary-link" disabled={isSubmittingOrder} onClick={handleSubmitOrder} type="button">
+            {isSubmittingOrder ? "Submitting..." : "Submit Order"}
+          </button>
+        ) : (
+          <Link className="primary-button cart-summary-link" href="/login">
+            Log In to Continue
+          </Link>
+        )}
         <Link className="primary-button cart-summary-link" href="/catalog">
           Add More Products
         </Link>

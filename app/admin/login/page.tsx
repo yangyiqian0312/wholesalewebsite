@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "../../../components/auth/login-form";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
 import { fetchAdminPortalRole, getCurrentUser } from "../../../utils/admin-auth";
 
 export default async function AdminLoginPage({
@@ -21,6 +22,7 @@ export default async function AdminLoginPage({
   return (
     <div className="page-shell login-page">
       <main className="login-layout">
+        <PageBreadcrumbs items={[{ href: "/", label: "Home" }, { label: "Admin Login" }]} />
         <section className="login-panel">
           <p className="eyebrow login-eyebrow">Admin Portal</p>
           <h1>Log in to review account applications</h1>

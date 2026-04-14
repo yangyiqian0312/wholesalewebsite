@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCatalogProduct } from "../../../components/catalog/catalog-api";
 import { ProductDetailPurchase } from "../../../components/catalog/product-detail-purchase";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../../components/shared/site-footer";
 import { SiteHeader } from "../../../components/shared/site-header";
 import { createClient } from "../../../utils/supabase/server";
 
@@ -48,9 +50,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         />
 
         <main className="page-layout product-detail-page-layout">
-          <div className="breadcrumbs">
-            <Link href="/catalog">Catalog</Link> / <span>{product.name}</span>
-          </div>
+          <PageBreadcrumbs
+            items={[
+              { href: "/", label: "Home" },
+              { href: "/catalog", label: "Catalog" },
+              { label: product.name },
+            ]}
+          />
 
           <section className="panel product-detail-panel">
             <div className="product-detail-grid">
@@ -113,6 +119,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 </div>
 
                 <ProductDetailPurchase
+                  canAddToCart={Boolean(user)}
                   defaultQuantity={product.quantity || "1"}
                   product={{
                     code: product.code,
@@ -150,6 +157,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </div>
           </section>
         </main>
+
+        <SiteFooter />
       </div>
     );
   } catch {

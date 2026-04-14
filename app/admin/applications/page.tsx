@@ -4,6 +4,7 @@ import {
   fetchAdminApplications,
   formatAdminDate,
 } from "../_lib/admin-data";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
 import { getFrontendBaseUrl } from "../../../utils/backend-api";
 import {
   approveApplicationAction,
@@ -256,6 +257,7 @@ export default async function AdminApplicationsPage({
 
   return (
     <div className="admin-layout">
+      <PageBreadcrumbs items={[{ href: "/admin", label: "Admin" }, { label: "Applications" }]} />
       {status === "approved" ? (
         <section className="panel status-banner status-banner-success">
           <strong>Application approved.</strong>

@@ -11,6 +11,8 @@ import type {
   CatalogProductRow,
 } from "../../components/catalog/catalog-types";
 import { AddToCartControl } from "../../components/cart/add-to-cart-control";
+import { PageBreadcrumbs } from "../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../components/shared/site-footer";
 import { SiteHeader } from "../../components/shared/site-header";
 import { createClient } from "../../utils/supabase/server";
 import {
@@ -154,7 +156,7 @@ function ProductRow({
           </div>,
         )}
       </td>
-      <td className="catalog-cell catalog-cell-upc mono-cell" data-label="UPC">
+      <td className="catalog-cell catalog-cell-upc" data-label="UPC">
         {maybeWrapWithLink(product.productPath, "row-link row-link-text", product.upc)}
       </td>
       <td className="catalog-cell catalog-cell-name" data-label="Name">
@@ -177,6 +179,7 @@ function ProductRow({
       <td className="catalog-cell catalog-cell-qty" data-label="Quantity">
         <AddToCartControl
           buttonClassName="primary-button cart-add-button"
+          canAddToCart={canSeePrice}
           className="cart-cell"
           controlClassName="cart-control-compact"
           inputClassName="qty-input"
@@ -294,16 +297,13 @@ function CatalogTable({
       </div>
 
       <div className="pagination">
-        <div className="results-meta">
-          {unavailable ? "Live catalog data is currently unavailable" : "Showing live products from the local catalog database"}
-        </div>
         <div className="pagination-controls">
           {pagination.page > 1 ? (
             <Link className="page-button" href={buildPageHref(pagination.page - 1)}>
-              Prev
+              &#8249;
             </Link>
           ) : (
-            <span className="page-button disabled">Prev</span>
+            <span className="page-button disabled">&#8249;</span>
           )}
           {!unavailable ? paginationItems.map((page) => (
             <Link
@@ -316,10 +316,10 @@ function CatalogTable({
           )) : null}
           {!unavailable && pagination.page < pagination.totalPages ? (
             <Link className="page-button" href={buildPageHref(pagination.page + 1)}>
-              Next
+              &#8250;
             </Link>
           ) : (
-            <span className="page-button disabled">Next</span>
+            <span className="page-button disabled">&#8250;</span>
           )}
         </div>
       </div>
@@ -354,6 +354,7 @@ export default async function CatalogPage({
     getCatalogProducts({ page, pageSize: 20, category: selectedCategory, smart }),
     getCatalogCategoryOptions({ smart }),
   ]);
+  const selectedRule = selectedCategory ? getCatalogCategoryRule(selectedCategory) : null;
   return (
     <div className="page-shell">
       <SiteHeader
@@ -362,7 +363,13 @@ export default async function CatalogPage({
       />
 
       <main className="page-layout">
-        <div className="breadcrumbs">Home / Catalog / Trading Card Games / Pokemon</div>
+        <PageBreadcrumbs
+          items={[
+            { href: "/", label: "Home" },
+            { label: "Catalog" },
+            ...(selectedRule ? [{ label: selectedRule.label }] : []),
+          ]}
+        />
 
         <section className="catalog-layout">
           <FilterPanel
@@ -380,6 +387,8 @@ export default async function CatalogPage({
           />
         </section>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

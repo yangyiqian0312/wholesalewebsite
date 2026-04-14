@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PageBreadcrumbs } from "../../../../components/shared/page-breadcrumbs";
 import {
   fetchAdminApplicationById,
   fetchAdminOrdersByApplicationId,
@@ -56,6 +57,13 @@ export default async function AdminUserDetailPage({
   const orders = await fetchAdminOrdersByApplicationId(application.id);
   return (
     <div className="admin-layout">
+      <PageBreadcrumbs
+        items={[
+          { href: "/admin", label: "Admin" },
+          { href: "/admin/users", label: "Users" },
+          { label: application.contactName },
+        ]}
+      />
       {error === "delete-auth-failed" || error === "delete-record-failed" ? (
         <section className="panel status-banner status-banner-error">
           <strong>User deletion failed.</strong>

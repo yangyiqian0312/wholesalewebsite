@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
 import { fetchAdminApplications, formatAdminDate } from "../_lib/admin-data";
 import { requireAdminPortalUser } from "../../../utils/admin-auth";
 
@@ -41,6 +42,7 @@ export default async function AdminUsersPage({
 
   return (
     <div className="admin-layout">
+      <PageBreadcrumbs items={[{ href: "/admin", label: "Admin" }, { label: "Users" }]} />
       {status === "deleted" ? (
         <section className="panel status-banner status-banner-success">
           <strong>User deleted.</strong>
@@ -59,7 +61,6 @@ export default async function AdminUsersPage({
         <div className="table-panel-header">
           <div>
             <h2>User List</h2>
-            <p className="panel-subtitle">Approved customer contacts currently active in the system</p>
           </div>
         </div>
 

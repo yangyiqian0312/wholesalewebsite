@@ -8,6 +8,21 @@ type InflowRequestOptions = {
 };
 
 const INFLOW_REQUEST_TIMEOUT_MS = 15000;
+export const INFLOW_RATE_LIMIT_MESSAGE = "System busy. Please try again later.";
+
+export class InflowRateLimitError extends Error {
+  detail: string;
+
+  constructor(detail = "") {
+    super(INFLOW_RATE_LIMIT_MESSAGE);
+    this.name = "InflowRateLimitError";
+    this.detail = detail;
+  }
+}
+
+export function isInflowRateLimitError(error: unknown): error is InflowRateLimitError {
+  return error instanceof InflowRateLimitError;
+}
 
 function buildQueryString(query: Record<string, QueryValue>) {
   const searchParams = new URLSearchParams();
@@ -61,6 +76,11 @@ export async function inflowRequest<T>(
 
   if (!response.ok) {
     const errorText = await response.text();
+
+    if (response.status === 429) {
+      throw new InflowRateLimitError(errorText);
+    }
+
     throw new Error(`Inflow request failed (${response.status}): ${errorText}`);
   }
 

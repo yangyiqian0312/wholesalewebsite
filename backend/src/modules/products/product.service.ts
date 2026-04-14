@@ -152,3 +152,7 @@ export async function upsertInflowProduct(payload: Record<string, unknown>) {
     },
   );
 }
+
+export async function fetchInflowProductById(productId: string) {
+  return inflowRequest<InflowProduct>(`/products/${productId}`);
+}

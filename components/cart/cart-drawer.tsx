@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { useCart } from "./cart-provider";
+import { createClient } from "../../utils/supabase/client";
 
 function parsePrice(value: string) {
   const normalized = Number(value.replace(/[^0-9.]/g, ""));
@@ -17,6 +19,7 @@ function formatCurrency(value: number) {
 }
 
 export function CartDrawer() {
+  const supabase = useMemo(() => createClient(), []);
   const {
     items,
     itemCount,
@@ -25,11 +28,34 @@ export function CartDrawer() {
     removeItem,
     closeDrawer,
   } = useCart();
+  const [user, setUser] = useState<User | null>(null);
+  const canSeePrice = Boolean(user);
   const label = itemCount === 1 ? "1 item" : `${itemCount} items`;
   const subtotal = useMemo(
     () => items.reduce((total, item) => total + parsePrice(item.wholesale) * item.quantity, 0),
     [items],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getUser().then(({ data }) => {
+      if (isMounted) {
+        setUser(data.user ?? null);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   useEffect(() => {
     if (!isDrawerOpen) {
@@ -79,7 +105,7 @@ export function CartDrawer() {
             onClick={closeDrawer}
             type="button"
           >
-            Close
+            ×
           </button>
         </div>
 
@@ -117,7 +143,9 @@ export function CartDrawer() {
                     <div className="cart-drawer-item-price-block">
                       <span>Total</span>
                       <strong className="cart-drawer-item-total">
-                        {formatCurrency(parsePrice(item.wholesale) * item.quantity)}
+                        {canSeePrice
+                          ? formatCurrency(parsePrice(item.wholesale) * item.quantity)
+                          : "Hidden until login"}
                       </strong>
                     </div>
 
@@ -137,14 +165,17 @@ export function CartDrawer() {
             <div className="cart-drawer-footer">
               <div className="cart-summary-row">
                 <span>Subtotal</span>
-                <strong>{formatCurrency(subtotal)}</strong>
+                <strong>{canSeePrice ? formatCurrency(subtotal) : "Log in to see price"}</strong>
               </div>
+              {!canSeePrice ? (
+                <p className="cart-drawer-login-note">Log in to view pricing and continue to checkout.</p>
+              ) : null}
               <div className="cart-drawer-footer-actions">
                 <Link className="secondary-button cart-summary-link" href="/catalog" onClick={closeDrawer}>
                   Continue Shopping
                 </Link>
-                <Link className="primary-button cart-summary-link" href="/cart" onClick={closeDrawer}>
-                  Go to Checkout
+                <Link className="primary-button cart-summary-link" href={canSeePrice ? "/cart" : "/login"} onClick={closeDrawer}>
+                  {canSeePrice ? "Go to Checkout" : "Log In"}
                 </Link>
               </div>
             </div>

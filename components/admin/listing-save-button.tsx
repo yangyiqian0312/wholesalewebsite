@@ -65,15 +65,6 @@ export default function ListingSaveButton({ productId }: ListingSaveButtonProps)
 
   return (
     <div className="admin-listing-save-group">
-      <button
-        className="admin-listing-save-button"
-        disabled={isPending}
-        onClick={handleSave}
-        ref={buttonRef}
-        type="button"
-      >
-        {isPending ? "Saving..." : "Save Listing"}
-      </button>
       {message ? (
         <span
           className={
@@ -85,6 +76,15 @@ export default function ListingSaveButton({ productId }: ListingSaveButtonProps)
           {message}
         </span>
       ) : null}
+      <button
+        className="admin-listing-save-button"
+        disabled={isPending}
+        onClick={handleSave}
+        ref={buttonRef}
+        type="button"
+      >
+        {isPending ? "Saving..." : "Save Listing"}
+      </button>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { config } from "../../config.js";
+import { INFLOW_RATE_LIMIT_MESSAGE, isInflowRateLimitError } from "../../integrations/inflow/client.js";
 import { sendApprovedOrderEmail } from "../notifications/email.service.js";
 import {
   approveWholesaleOrder,
@@ -161,6 +162,13 @@ export async function registerOrderRoutes(app: FastifyInstance) {
     } catch (error) {
       request.log.error(error);
 
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
+
       const message = error instanceof Error ? error.message : "Failed to submit order";
       const statusCode =
         message.includes("No approved registered wholesale application") || message.includes("Cart is empty")
@@ -245,6 +253,13 @@ export async function registerOrderRoutes(app: FastifyInstance) {
     } catch (error) {
       request.log.error(error);
 
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
+
       const message = error instanceof Error ? error.message : "Failed to approve order";
       const statusCode =
         message.includes("not found")
@@ -293,6 +308,13 @@ export async function registerOrderRoutes(app: FastifyInstance) {
     } catch (error) {
       request.log.error(error);
 
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
+
       const message = error instanceof Error ? error.message : "Failed to update order cancellation";
       const statusCode =
         message.includes("not found")
@@ -340,6 +362,13 @@ export async function registerOrderRoutes(app: FastifyInstance) {
       return reply.send(updatedOrder);
     } catch (error) {
       request.log.error(error);
+
+      if (isInflowRateLimitError(error)) {
+        return reply.status(503).send({
+          error: INFLOW_RATE_LIMIT_MESSAGE,
+          code: "INFLOW_RATE_LIMIT",
+        });
+      }
 
       const message = error instanceof Error ? error.message : "Failed to cancel order";
       const statusCode =

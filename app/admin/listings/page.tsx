@@ -3,6 +3,7 @@ import ListingDescriptionEditor from "../../../components/admin/listing-descript
 import ListingSaveButton from "../../../components/admin/listing-save-button";
 import ListingsSyncButton from "../../../components/admin/listings-sync-button";
 import ListingsPageSizeSelect from "../../../components/admin/listings-page-size-select";
+import { PageBreadcrumbs } from "../../../components/shared/page-breadcrumbs";
 import { fetchAdminListings } from "../_lib/admin-data";
 import { updateListingAction } from "../_lib/listing-actions";
 
@@ -49,6 +50,12 @@ function formatReleaseDateValue(value?: string | null) {
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
     return trimmedValue;
+  }
+
+  const usMatch = trimmedValue.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (usMatch) {
+    return `${usMatch[3]}-${usMatch[1].padStart(2, "0")}-${usMatch[2].padStart(2, "0")}`;
   }
 
   const parsedDate = new Date(trimmedValue);
@@ -189,6 +196,7 @@ export default async function AdminListingsPage({
 
   return (
     <div className="admin-layout">
+      <PageBreadcrumbs items={[{ href: "/admin", label: "Admin" }, { label: "Listings" }]} />
       {status === "updated" ? (
         <section className="panel status-banner status-banner-success">
           <strong>Listing updated.</strong>

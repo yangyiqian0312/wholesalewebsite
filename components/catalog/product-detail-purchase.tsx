@@ -7,6 +7,7 @@ import type { CartProductInput } from "../cart/cart-types";
 type ProductDetailPurchaseProps = {
   product: CartProductInput;
   defaultQuantity?: string;
+  canAddToCart?: boolean;
 };
 
 function parseInputQuantity(value: string) {
@@ -22,6 +23,7 @@ function parseInputQuantity(value: string) {
 export function ProductDetailPurchase({
   product,
   defaultQuantity = "1",
+  canAddToCart = true,
 }: ProductDetailPurchaseProps) {
   const { addItem, getItemQuantity, openDrawer } = useCart();
   const [quantity, setQuantity] = useState(defaultQuantity || "1");
@@ -71,16 +73,19 @@ export function ProductDetailPurchase({
 
   function renderControls(isFloating: boolean) {
     return (
-      <div className={isFloating ? "product-detail-actions-bar is-floating" : "product-detail-actions"}>
+        <div className={isFloating ? "product-detail-actions-bar is-floating" : "product-detail-actions"}>
         <div className="product-detail-purchase-head">
           <span className="product-detail-purchase-label">Quantity</span>
           <small className="cart-feedback product-detail-feedback">
-            {feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")}
+            {canAddToCart
+              ? feedback || (cartQuantity > 0 ? `${cartQuantity} in cart` : "Ready to add")
+              : "Log in to add this item to your cart"}
           </small>
         </div>
         <div className="product-detail-cart-control">
           <input
             className="product-detail-qty-input"
+            disabled={!canAddToCart}
             inputMode="numeric"
             min="1"
             onChange={(event) => setQuantity(event.target.value)}
@@ -89,6 +94,7 @@ export function ProductDetailPurchase({
           />
           <button
             className="primary-button product-detail-button"
+            disabled={!canAddToCart}
             onClick={handleAddToCart}
             type="button"
           >

@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: responseBody?.error ?? "Failed to submit order",
+          code: responseBody?.code,
         },
         {
           status: response.status,

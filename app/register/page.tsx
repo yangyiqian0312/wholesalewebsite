@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "../../components/auth/register-form";
+import { PageBreadcrumbs } from "../../components/shared/page-breadcrumbs";
+import { SiteFooter } from "../../components/shared/site-footer";
+import { SiteHeader } from "../../components/shared/site-header";
 import { getBackendBaseUrl } from "../../utils/backend-api";
 
 type RegistrationInvite = {
@@ -53,7 +56,9 @@ export default async function RegisterPage({
 
   return (
     <div className="page-shell login-page">
+      <SiteHeader activePath="/catalog" />
       <main className="login-layout">
+        <PageBreadcrumbs items={[{ href: "/", label: "Home" }, { href: "/login", label: "Login" }, { label: "Register" }]} />
         <section className="login-panel">
           <p className="eyebrow login-eyebrow">Approved Account Setup</p>
           <h1>Create your wholesale account</h1>
@@ -84,6 +89,8 @@ export default async function RegisterPage({
           </Link>
         </section>
       </main>
+
+      <SiteFooter />
     </div>
   );
 }
