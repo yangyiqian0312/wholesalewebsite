@@ -4,7 +4,10 @@ import { CartProvider } from "../components/cart/cart-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Crossing",
+  title: {
+    default: "CrossingTCG",
+    template: "%s | CrossingTCG",
+  },
 };
 
 export default function RootLayout({
