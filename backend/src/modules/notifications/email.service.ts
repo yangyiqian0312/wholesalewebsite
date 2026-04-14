@@ -67,8 +67,7 @@ function buildApprovedApplicationEmailHtml(input: ApprovedApplicationEmailInput)
     <div style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6;">
       <p>Hello ${escapeHtml(input.contactName)},</p>
       <p>
-        Your wholesale account application for
-        <strong>${escapeHtml(input.businessName)}</strong> has been approved.
+        Your account application has been approved.
       </p>
       <p>
         Use the secure link below to create your account with the same email address you used on
@@ -76,7 +75,7 @@ function buildApprovedApplicationEmailHtml(input: ApprovedApplicationEmailInput)
       </p>
       <p>
         <a href="${input.registrationLink}" style="color:#1e4e8c;font-weight:700;">
-          Create your wholesale account
+          Create your account here
         </a>
       </p>
       <p>

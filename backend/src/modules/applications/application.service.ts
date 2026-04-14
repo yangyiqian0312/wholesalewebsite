@@ -86,7 +86,8 @@ function buildApplicationWriteData(
     zipPostalCode: input.zipPostalCode.trim(),
     country: input.country.trim(),
     website: normalizeOptionalString(input.website),
-    storeMarketplaceLink: normalizeOptionalString(input.storeMarketplaceLink),
+    // Legacy required DB column kept for compatibility while the field is removed from the UI.
+    businessModel: "",
     salesChannels: input.salesChannels,
     physicalStoreAddress: normalizeOptionalString(input.physicalStoreAddress),
     onlineChannelNotes: normalizeOptionalString(input.onlineChannelNotes),
@@ -199,7 +200,8 @@ export async function updateApprovedRegisteredApplicationProfileByEmail(
         zipPostalCode: input.zipPostalCode.trim(),
         country: input.country.trim(),
         website: normalizeOptionalString(input.website),
-        storeMarketplaceLink: normalizeOptionalString(input.storeMarketplaceLink),
+        // Preserve the legacy required DB field even though it is no longer editable.
+        businessModel: "",
         salesChannels: input.salesChannels,
         physicalStoreAddress: normalizeOptionalString(input.physicalStoreAddress),
         onlineChannelNotes: normalizeOptionalString(input.onlineChannelNotes),

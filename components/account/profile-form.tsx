@@ -15,7 +15,6 @@ export type AccountProfile = {
   zipPostalCode: string;
   country: string;
   website: string | null;
-  storeMarketplaceLink: string | null;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;
@@ -157,6 +156,30 @@ function Field({
   );
 }
 
+function CurrencyField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="profile-field">
+      <span>{label}</span>
+      <div className="field-with-prefix">
+        <span className="field-prefix" aria-hidden="true">$</span>
+        <input
+          onChange={(event) => onChange(event.target.value)}
+          type="text"
+          value={value}
+        />
+      </div>
+    </label>
+  );
+}
+
 function ChoicePill({
   label,
   checked,
@@ -207,7 +230,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     zipPostalCode: profile.zipPostalCode,
     country: profile.country,
     website: profile.website ?? "",
-    storeMarketplaceLink: profile.storeMarketplaceLink ?? "",
     salesChannels: profile.salesChannels,
     shippingAddressee: shippingAddress.addressee,
     shippingStreetAddress: shippingAddress.streetAddress,
@@ -265,7 +287,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           zipPostalCode: formState.zipPostalCode.trim(),
           country: formState.country.trim(),
           website: formState.website.trim(),
-          storeMarketplaceLink: formState.storeMarketplaceLink.trim(),
           salesChannels: formState.salesChannels,
           physicalStoreAddress: shippingAddressSameAsCompany ? "" : buildShippingAddressValue(formState),
           onlineChannelNotes: formState.onlineChannelNotes.trim(),
@@ -343,17 +364,12 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <div className="profile-grid">
             <Field label="Business Name" onChange={(value) => updateField("businessName", value)} value={formState.businessName} />
             <Field label="Type of Ownership" onChange={(value) => updateField("businessType", value)} value={formState.businessType} />
-            <Field
+            <CurrencyField
               label="Expected Purchase Volume"
-              onChange={(value) => updateField("expectedPurchaseVolume", value)}
+              onChange={(value) => updateField("expectedPurchaseVolume", value.replace(/[^\d]/g, ""))}
               value={formState.expectedPurchaseVolume}
             />
             <Field label="Website" onChange={(value) => updateField("website", value)} value={formState.website} />
-            <Field
-              label="Store / Marketplace Link"
-              onChange={(value) => updateField("storeMarketplaceLink", value)}
-              value={formState.storeMarketplaceLink}
-            />
           </div>
         </section>
 

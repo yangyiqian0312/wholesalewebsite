@@ -18,7 +18,6 @@ type EditableApplication = {
   zipPostalCode: string;
   country: string;
   website: string | null;
-  storeMarketplaceLink: string | null;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;

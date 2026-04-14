@@ -23,31 +23,35 @@ export default async function LoginPage() {
 
       <main className="page-layout login-layout">
         <PageBreadcrumbs items={[{ href: "/", label: "Home" }, { label: "Login" }]} />
+
         <div className="login-stage">
           <section className="login-panel">
             <div className="login-split">
-              <section className="login-side login-side-signin">
-                <p className="eyebrow login-eyebrow">Customer Log In</p>
+              <div className="login-side login-side-signin">
+                <p className="eyebrow login-eyebrow">Account Access</p>
                 <h1>Log in to your wholesale account</h1>
                 <p className="login-copy">
                   Access your wholesale pricing, saved cart, and order history from one place.
                 </p>
-                <LoginForm redirectTo="/login" />
+
+                <LoginForm redirectTo="/catalog" />
+
                 <Link className="text-button login-back" href="/catalog">
                   Back to Catalog
                 </Link>
-              </section>
+              </div>
 
-              <aside className="login-side login-side-cta">
-                <p className="eyebrow login-eyebrow">Interested in Opening an Account?</p>
+              <div className="login-side login-side-cta">
+                <p className="eyebrow login-eyebrow">Interested in opening an account?</p>
                 <h2>Apply for wholesale access</h2>
                 <p className="login-copy">
                   Submit your account application to unlock pricing, place orders, and work with your sales rep.
                 </p>
+
                 <Link className="primary-button login-cta-button" href="/open-account">
                   Open an Account
                 </Link>
-              </aside>
+              </div>
             </div>
           </section>
         </div>

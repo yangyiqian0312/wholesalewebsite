@@ -17,7 +17,6 @@ type EditableApplication = {
   zipPostalCode: string;
   country: string;
   website: string | null;
-  storeMarketplaceLink: string | null;
   salesChannels: string[];
   physicalStoreAddress: string | null;
   onlineChannelNotes: string | null;
@@ -75,7 +74,6 @@ type FormState = {
   zipPostalCode: string;
   country: string;
   website: string;
-  storeMarketplaceLink: string;
   salesChannels: string[];
   shippingAddressee: string;
   shippingStreetAddress: string;
@@ -98,6 +96,16 @@ function classNames(...values: Array<string | false | null | undefined>) {
 function normalizeOptionalString(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function mergeFiles(currentFiles: File[], nextFiles: File[]) {
+  const fileMap = new Map<string, File>();
+
+  for (const file of [...currentFiles, ...nextFiles]) {
+    fileMap.set(`${file.name}-${file.size}-${file.lastModified}`, file);
+  }
+
+  return Array.from(fileMap.values());
 }
 
 function parseShippingAddress(value?: string | null): ParsedShippingAddress {
@@ -158,7 +166,6 @@ function buildInitialState(defaults: EditableApplication | null | undefined): Fo
     zipPostalCode: defaults?.zipPostalCode ?? "",
     country: defaults?.country ?? "",
     website: defaults?.website ?? "",
-    storeMarketplaceLink: defaults?.storeMarketplaceLink ?? "",
     salesChannels: defaults?.salesChannels ?? [],
     shippingAddressee: shippingAddress.addressee,
     shippingStreetAddress: shippingAddress.streetAddress,
@@ -266,6 +273,36 @@ function TextField({
         type={type}
         value={value}
       />
+      {error ? <small className="field-error-text">{error}</small> : null}
+    </label>
+  );
+}
+
+function CurrencyField({
+  label,
+  name,
+  placeholder,
+  value,
+  required = false,
+  error,
+  onChange,
+}: Omit<TextFieldProps, "type">) {
+  return (
+    <label className="open-account-field">
+      <span>
+        <LabelText label={label} required={required} />
+      </span>
+      <div className={classNames("field-with-prefix", error && "field-with-prefix-error")}>
+        <span className="field-prefix" aria-hidden="true">$</span>
+        <input
+          aria-invalid={Boolean(error)}
+          name={name}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          type="text"
+          value={value}
+        />
+      </div>
       {error ? <small className="field-error-text">{error}</small> : null}
     </label>
   );
@@ -506,7 +543,6 @@ export function OpenAccountForm({
       zipPostalCode: formState.zipPostalCode.trim(),
       country: formState.country.trim(),
       website: normalizeOptionalString(formState.website),
-      storeMarketplaceLink: normalizeOptionalString(formState.storeMarketplaceLink),
       salesChannels: formState.salesChannels,
       physicalStoreAddress: shippingAddressSameAsCompany
         ? undefined
@@ -522,71 +558,75 @@ export function OpenAccountForm({
       : "/api/account-applications";
     const requestMethod = editableApplication?.publicEditToken ? "PUT" : "POST";
 
-    const response = await fetch(requestUrl, selectedFiles.length > 0
-      ? (() => {
-          const formData = new FormData();
-          formData.append("payload", JSON.stringify(payload));
+    try {
+      const response = await fetch(requestUrl, selectedFiles.length > 0
+        ? (() => {
+            const formData = new FormData();
+            formData.append("payload", JSON.stringify(payload));
 
-          for (const file of selectedFiles) {
-            formData.append("documents", file);
-          }
+            for (const file of selectedFiles) {
+              formData.append("documents", file);
+            }
 
-          return {
+            return {
+              method: requestMethod,
+              body: formData,
+            };
+          })()
+        : {
             method: requestMethod,
-            body: formData,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+      if (!response.ok) {
+        let errorMessage = "Submission failed. Please review your entries and try again.";
+
+        try {
+          const errorPayload = (await response.json()) as {
+            error?: string;
+            details?: {
+              fieldErrors?: Record<string, string[] | undefined>;
+            };
           };
-        })()
-      : {
-          method: requestMethod,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
 
-    setIsSubmitting(false);
+          const backendFieldErrors = errorPayload.details?.fieldErrors ?? {};
+          const nextBackendErrors: FieldErrors = {};
 
-    if (!response.ok) {
-      let errorMessage = "Submission failed. Please review your entries and try again.";
-
-      try {
-        const errorPayload = (await response.json()) as {
-          error?: string;
-          details?: {
-            fieldErrors?: Record<string, string[] | undefined>;
-          };
-        };
-
-        const backendFieldErrors = errorPayload.details?.fieldErrors ?? {};
-        const nextBackendErrors: FieldErrors = {};
-
-        for (const [key, messages] of Object.entries(backendFieldErrors)) {
-          if (Array.isArray(messages) && messages.length > 0) {
-            nextBackendErrors[key as keyof FormState] = messages[0];
+          for (const [key, messages] of Object.entries(backendFieldErrors)) {
+            if (Array.isArray(messages) && messages.length > 0) {
+              nextBackendErrors[key as keyof FormState] = messages[0];
+            }
           }
+
+          if (Object.keys(nextBackendErrors).length > 0) {
+            setFieldErrors(nextBackendErrors);
+          }
+
+          const firstFieldError = Object.values(nextBackendErrors)[0];
+          errorMessage = firstFieldError ?? errorPayload.error ?? errorMessage;
+        } catch {
         }
 
-        if (Object.keys(nextBackendErrors).length > 0) {
-          setFieldErrors(nextBackendErrors);
-        }
-
-        const firstFieldError = Object.values(nextBackendErrors)[0];
-        errorMessage = firstFieldError ?? errorPayload.error ?? errorMessage;
-      } catch {
+        setSubmitError(errorMessage);
+        return;
       }
 
-      setSubmitError(errorMessage);
-      return;
+      setSelectedFiles([]);
+
+      router.push(
+        editableApplication?.publicEditToken
+          ? "/open-account?status=resubmitted"
+          : "/open-account?status=submitted",
+      );
+      router.refresh();
+    } catch {
+      setSubmitError("Failed to reach the application service. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSelectedFiles([]);
-
-    router.push(
-      editableApplication?.publicEditToken
-        ? "/open-account?status=resubmitted"
-        : "/open-account?status=submitted",
-    );
-    router.refresh();
   }
 
   return (
@@ -713,13 +753,6 @@ export function OpenAccountForm({
           placeholder="https://yourstore.com or crossingcards.com"
           value={formState.website}
         />
-        <TextField
-          label="Store / Marketplace Link"
-          name="storeMarketplaceLink"
-          onChange={(value) => updateField("storeMarketplaceLink", value)}
-          placeholder="https://marketplace.example.com/your-store"
-          value={formState.storeMarketplaceLink}
-        />
         <div className="open-account-field open-account-field-full">
           <span>Shipping Address</span>
           <CheckboxField
@@ -820,7 +853,7 @@ export function OpenAccountForm({
           </div>
         </div>
 
-        <TextField
+        <CurrencyField
           error={fieldErrors.expectedPurchaseVolume}
           label="Expected Purchase Volume Per Month"
           name="expectedPurchaseVolume"
@@ -848,27 +881,37 @@ export function OpenAccountForm({
         <label className="open-account-field open-account-field-full">
           <span>Upload Reseller Permit / Tax Document</span>
           <div className="upload-dropzone">
-            <strong>Drop files here or choose files</strong>
+            <strong>Add one or more files</strong>
             <small>
               Prototype behavior: file names are recorded for review.
               {formState.uploadedDocumentNames.length
                 ? ` Previous files: ${formState.uploadedDocumentNames.join(", ")}`
                 : ""}
             </small>
-            <input
-              multiple
-              onChange={(event) => {
-                const nextFiles = Array.from(event.target.files ?? []);
-                setSelectedFiles(nextFiles);
-                updateField(
-                  "uploadedDocumentNames",
-                  nextFiles.length
-                    ? nextFiles.map((file) => file.name)
-                    : editableApplication?.uploadedDocumentNames ?? [],
-                );
-              }}
-              type="file"
-            />
+            <label className="upload-picker">
+              <span className="upload-picker-plus" aria-hidden="true">+</span>
+              <span>Add files</span>
+              <input
+                multiple
+                onChange={(event) => {
+                  const nextFiles = Array.from(event.target.files ?? []);
+                  const mergedFiles = mergeFiles(selectedFiles, nextFiles);
+                  setSelectedFiles(mergedFiles);
+                  updateField("uploadedDocumentNames", mergedFiles.map((file) => file.name));
+                  event.target.value = "";
+                }}
+                type="file"
+              />
+            </label>
+            {formState.uploadedDocumentNames.length ? (
+              <div className="upload-file-list">
+                {formState.uploadedDocumentNames.map((fileName) => (
+                  <span className="upload-file-chip" key={fileName}>
+                    {fileName}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         </label>
       </FormSection>
