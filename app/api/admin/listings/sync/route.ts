@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getBackendBaseUrl } from "../../../../../utils/backend-api";
 import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
@@ -24,6 +24,8 @@ export async function POST() {
 
   revalidatePath("/admin/listings");
   revalidatePath("/catalog");
+  revalidateTag("catalog-products");
+  revalidateTag("catalog-filter-options");
 
   return Response.json(await response.json(), {
     headers: {
@@ -57,6 +59,8 @@ export async function GET() {
   if ((payload as { status?: string }).status === "success") {
     revalidatePath("/admin/listings");
     revalidatePath("/catalog");
+    revalidateTag("catalog-products");
+    revalidateTag("catalog-filter-options");
   }
 
   return Response.json(payload, {

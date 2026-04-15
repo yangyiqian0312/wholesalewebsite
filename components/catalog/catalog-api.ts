@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   mapInflowProductToCatalogRow,
 } from "./catalog-mappers";
@@ -12,6 +13,11 @@ import {
 import { getBackendBaseUrl } from "../../utils/backend-api";
 
 const backendBaseUrl = getBackendBaseUrl();
+const CATALOG_PRODUCTS_TAG = "catalog-products";
+const CATALOG_FILTER_OPTIONS_TAG = "catalog-filter-options";
+const CATALOG_PRODUCTS_REVALIDATE_SECONDS = 30;
+const CATALOG_FILTERS_REVALIDATE_SECONDS = 60;
+const CATALOG_PRODUCT_REVALIDATE_SECONDS = 60;
 
 function buildUnavailablePagination(page: number, pageSize: number): CatalogProductsResult {
   return {
@@ -37,6 +43,7 @@ export async function getCatalogProducts({
   category?: string;
   smart?: string;
 } = {}): Promise<CatalogProductsResult> {
+  const normalizedSmart = smart?.trim() || "";
   const query = new URLSearchParams({
     inStockOnly: "true",
     page: String(page),
@@ -47,26 +54,37 @@ export async function getCatalogProducts({
     query.set("category", category);
   }
 
-  if (smart?.trim()) {
-    query.set("smart", smart.trim());
+  if (normalizedSmart) {
+    query.set("smart", normalizedSmart);
   }
 
+  const cacheKey = query.toString();
+
   try {
-    const response = await fetch(
-      `${backendBaseUrl}/api/catalog/products?${query.toString()}`,
-      {
-        cache: "no-store",
+    const payload = await unstable_cache(
+      async () => {
+        const response = await fetch(`${backendBaseUrl}/api/catalog/products?${cacheKey}`, {
+          next: {
+            revalidate: CATALOG_PRODUCTS_REVALIDATE_SECONDS,
+            tags: [CATALOG_PRODUCTS_TAG],
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Catalog backend request failed: ${response.status}`);
+        }
+
+        return (await response.json()) as {
+          items?: Array<Record<string, unknown>>;
+          pagination?: CatalogProductsResult["pagination"];
+        };
       },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Catalog backend request failed: ${response.status}`);
-    }
-
-    const payload = (await response.json()) as {
-      items?: Array<Record<string, unknown>>;
-      pagination?: CatalogProductsResult["pagination"];
-    };
+      [CATALOG_PRODUCTS_TAG, cacheKey],
+      {
+        revalidate: CATALOG_PRODUCTS_REVALIDATE_SECONDS,
+        tags: [CATALOG_PRODUCTS_TAG],
+      },
+    )();
 
     if (!Array.isArray(payload.items) || !payload.pagination) {
       throw new Error("Catalog backend returned an invalid paginated products payload");
@@ -95,22 +113,38 @@ export async function getCatalogCategoryOptions({
     inStockOnly: "true",
   });
 
-  if (smart?.trim()) {
-    query.set("smart", smart.trim());
+  const normalizedSmart = smart?.trim() || "";
+
+  if (normalizedSmart) {
+    query.set("smart", normalizedSmart);
   }
 
+  const cacheKey = query.toString();
+
   try {
-    const response = await fetch(`${backendBaseUrl}/api/catalog/filter-options?${query.toString()}`, {
-      cache: "no-store",
-    });
+    const payload = await unstable_cache(
+      async () => {
+        const response = await fetch(`${backendBaseUrl}/api/catalog/filter-options?${cacheKey}`, {
+          next: {
+            revalidate: CATALOG_FILTERS_REVALIDATE_SECONDS,
+            tags: [CATALOG_FILTER_OPTIONS_TAG],
+          },
+        });
 
-    if (!response.ok) {
-      throw new Error(`Catalog filter options request failed: ${response.status}`);
-    }
+        if (!response.ok) {
+          throw new Error(`Catalog filter options request failed: ${response.status}`);
+        }
 
-    const payload = (await response.json()) as {
-      categories?: CatalogCategoryOption[];
-    };
+        return (await response.json()) as {
+          categories?: CatalogCategoryOption[];
+        };
+      },
+      [CATALOG_FILTER_OPTIONS_TAG, cacheKey],
+      {
+        revalidate: CATALOG_FILTERS_REVALIDATE_SECONDS,
+        tags: [CATALOG_FILTER_OPTIONS_TAG],
+      },
+    )();
 
     if (!Array.isArray(payload.categories)) {
       throw new Error("Catalog filter options payload is invalid");
@@ -123,15 +157,27 @@ export async function getCatalogCategoryOptions({
 }
 
 export async function getCatalogProduct(productId: string): Promise<CatalogProductRow> {
-  const response = await fetch(`${backendBaseUrl}/api/catalog/products/${productId}`, {
-    cache: "no-store",
-  });
+  const product = await unstable_cache(
+    async () => {
+      const response = await fetch(`${backendBaseUrl}/api/catalog/products/${productId}`, {
+        next: {
+          revalidate: CATALOG_PRODUCT_REVALIDATE_SECONDS,
+          tags: [CATALOG_PRODUCTS_TAG, `catalog-product:${productId}`],
+        },
+      });
 
-  if (!response.ok) {
-    throw new Error(`Catalog product request failed: ${response.status}`);
-  }
+      if (!response.ok) {
+        throw new Error(`Catalog product request failed: ${response.status}`);
+      }
 
-  const product = (await response.json()) as Record<string, unknown>;
+      return (await response.json()) as Record<string, unknown>;
+    },
+    ["catalog-product", productId],
+    {
+      revalidate: CATALOG_PRODUCT_REVALIDATE_SECONDS,
+      tags: [CATALOG_PRODUCTS_TAG, `catalog-product:${productId}`],
+    },
+  )();
 
   return mapInflowProductToCatalogRow(
     product as Parameters<typeof mapInflowProductToCatalogRow>[0],

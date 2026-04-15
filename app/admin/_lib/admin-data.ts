@@ -68,6 +68,7 @@ export type AdminOrderLine = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  imageSmallUrl: string | null;
   submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
@@ -171,6 +172,7 @@ export async function fetchAdminListings({
   const resolvedPageSize = [20, 50, 100].includes(pageSize ?? 20) ? (pageSize ?? 20) : 20;
   const query = new URLSearchParams({
     inStockOnly: "false",
+    includeSummary: "true",
     page: String(page ?? 1),
     pageSize: String(resolvedPageSize),
   });

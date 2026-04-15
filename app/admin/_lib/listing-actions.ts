@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../utils/backend-api";
 import { requireAdminPortalUser } from "../../../utils/admin-auth";
@@ -104,5 +104,7 @@ export async function updateListingAction(formData: FormData) {
 
   revalidatePath("/admin/listings");
   revalidatePath("/catalog");
+  revalidateTag("catalog-products");
+  revalidateTag("catalog-filter-options");
   redirect(`${listingsPath}${listingsPath.includes("?") ? "&" : "?"}status=updated`);
 }

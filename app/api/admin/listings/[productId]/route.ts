@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getAdminApiToken, getBackendBaseUrl } from "../../../../../utils/backend-api";
 import { requireAdminPortalUser } from "../../../../../utils/admin-auth";
 
@@ -73,6 +73,9 @@ export async function PATCH(
 
   revalidatePath("/admin/listings");
   revalidatePath("/catalog");
+  revalidateTag("catalog-products");
+  revalidateTag("catalog-filter-options");
+  revalidateTag(`catalog-product:${productId}`);
 
   return Response.json(
     {

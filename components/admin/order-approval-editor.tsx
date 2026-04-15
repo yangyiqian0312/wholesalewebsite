@@ -7,6 +7,7 @@ type OrderLineInput = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  imageSmallUrl: string | null;
   submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
@@ -46,6 +47,7 @@ type EditableLine = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  imageSmallUrl: string | null;
   quantity: number;
   salesUomName: string | null;
   standardUomName: string | null;
@@ -80,8 +82,19 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatQuantityLabel(quantity: number, uomName: string | null, standardUomName: string | null) {
-  return `${quantity} ${uomName || standardUomName || "ea."}`;
+function buildImageLabel(name: string | null, productId: string) {
+  const source = (name || productId).trim();
+
+  return (
+    source
+      .replace(/[^A-Za-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "P"
+  );
 }
 
 function calculateLineSubtotal(line: EditableLine) {
@@ -89,6 +102,10 @@ function calculateLineSubtotal(line: EditableLine) {
   const discountPercent = parsePercent(line.discountPercent);
   const discountedUnitPrice = originalUnitPrice * (1 - discountPercent / 100);
   return discountedUnitPrice * line.quantity;
+}
+
+function calculateLineOriginalTotal(line: EditableLine) {
+  return parseMoney(line.originalUnitPrice) * line.quantity;
 }
 
 export function OrderApprovalEditor({
@@ -111,6 +128,7 @@ export function OrderApprovalEditor({
       productId: line.productId,
       productName: line.productName,
       productCode: line.productCode,
+      imageSmallUrl: line.imageSmallUrl,
       quantity: line.quantity,
       salesUomName: line.salesUomName,
       standardUomName: line.standardUomName,
@@ -145,120 +163,133 @@ export function OrderApprovalEditor({
   }, [adjustments, currentFreightAmount, currentTaxRate, lines]);
 
   return (
-    <form action={action} className="panel admin-application-card">
+    <form action={action} className="panel admin-application-card admin-order-editor">
       <input name="orderId" type="hidden" value={orderId} />
-      <div className="table-panel-header">
+      <div className="table-panel-header admin-order-editor-head">
         <div>
           <h2>Line Items</h2>
           <p className="panel-subtitle">Review submitted quantities, pricing, notes, and additional charges before approving this order</p>
         </div>
-        {!disabled ? (
-          <button className="primary-button" type="submit">
-            Approve Order
-          </button>
-        ) : null}
       </div>
 
-      <div className="table-scroll">
-        <table className="catalog-table admin-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Quantity</th>
-              <th>Unit Price</th>
-              <th>Discount</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line) => {
-              const lineSubtotal = calculateLineSubtotal(line);
-              const uomLabel = line.salesUomName || line.standardUomName || "ea.";
+      <div className="admin-order-lines-list">
+        {lines.map((line) => {
+          const originalLineTotal = calculateLineOriginalTotal(line);
+          const lineSubtotal = calculateLineSubtotal(line);
+          const discountAmount = Math.max(0, originalLineTotal - lineSubtotal);
+          const uomLabel = line.salesUomName || line.standardUomName || "ea.";
 
-              return (
-                <tr key={line.id}>
-                  <td>
-                    <input name="lineId" type="hidden" value={line.id} />
-                    <strong>{line.productName || line.productId}</strong>
-                    <span>{line.productCode || line.productId}</span>
-                  </td>
-                  <td>
-                    <div className="admin-order-stepper">
-                      <button
-                        className="admin-order-stepper-button"
-                        disabled={disabled || line.quantity <= 0}
-                        onClick={() =>
-                          setLines((current) =>
-                            current.map((entry) =>
-                              entry.id === line.id
-                                ? { ...entry, quantity: Math.max(0, entry.quantity - 1) }
-                                : entry,
-                            ),
-                          )
-                        }
-                        type="button"
-                      >
-                        -
-                      </button>
-                      <input
-                        className="admin-order-stepper-input"
-                        disabled={disabled}
-                        min={0}
-                        name={`quantity:${line.id}`}
-                        onChange={(event) =>
-                          setLines((current) =>
-                            current.map((entry) =>
-                              entry.id === line.id
-                                ? { ...entry, quantity: Math.max(0, Number(event.target.value) || 0) }
-                                : entry,
-                            ),
-                          )
-                        }
-                        type="number"
-                        value={line.quantity}
-                      />
-                      <span className="admin-order-stepper-uom">{uomLabel}</span>
-                      <button
-                        className="admin-order-stepper-button"
-                        disabled={disabled}
-                        onClick={() =>
-                          setLines((current) =>
-                            current.map((entry) =>
-                              entry.id === line.id
-                                ? { ...entry, quantity: entry.quantity + 1 }
-                                : entry,
-                            ),
-                          )
-                        }
-                        type="button"
-                      >
-                        +
-                      </button>
+          return (
+            <section className="admin-order-line-card" key={line.id}>
+              <input name="lineId" type="hidden" value={line.id} />
+
+              <div className="admin-order-line-card-head">
+                <div className="admin-order-line-card-product">
+                  <div className="admin-order-line-card-product-main">
+                    <div className="admin-order-line-card-thumb">
+                      {line.imageSmallUrl ? (
+                        <img alt={line.productName || line.productId} src={line.imageSmallUrl} />
+                      ) : (
+                        <span>{buildImageLabel(line.productName, line.productId)}</span>
+                      )}
                     </div>
-                    <span className="admin-order-stepper-preview">
-                      {formatQuantityLabel(line.quantity, line.salesUomName, line.standardUomName)}
-                    </span>
-                  </td>
-                  <td>
-                    <input
-                      className="admin-order-line-input"
-                      disabled={disabled}
-                      inputMode="decimal"
-                      name={`originalUnitPrice:${line.id}`}
-                      onChange={(event) =>
+                    <div className="admin-order-line-card-product-copy">
+                      <strong>{line.productName || line.productId}</strong>
+                      <span>{line.productCode || line.productId}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="admin-order-line-card-subtotal">
+                  <span>Original</span>
+                  <strong>{formatCurrency(originalLineTotal)}</strong>
+                  <span>Discount</span>
+                  <strong className="admin-order-line-discount-amount">-{formatCurrency(discountAmount)}</strong>
+                  <span>Subtotal</span>
+                  <strong className="admin-order-live-subtotal">{formatCurrency(lineSubtotal)}</strong>
+                </div>
+              </div>
+
+              <div className="admin-order-line-card-fields">
+                <label className="admin-order-card-field admin-order-card-field-quantity">
+                  <span>Quantity</span>
+                  <div className="admin-order-stepper">
+                    <button
+                      className="admin-order-stepper-button"
+                      disabled={disabled || line.quantity <= 0}
+                      onClick={() =>
                         setLines((current) =>
                           current.map((entry) =>
                             entry.id === line.id
-                              ? { ...entry, originalUnitPrice: event.target.value }
+                              ? { ...entry, quantity: Math.max(0, entry.quantity - 1) }
                               : entry,
                           ),
                         )
                       }
-                      type="text"
-                      value={line.originalUnitPrice}
+                      type="button"
+                    >
+                      -
+                    </button>
+                    <input
+                      className="admin-order-stepper-input"
+                      disabled={disabled}
+                      min={0}
+                      name={`quantity:${line.id}`}
+                      onChange={(event) =>
+                        setLines((current) =>
+                          current.map((entry) =>
+                            entry.id === line.id
+                              ? { ...entry, quantity: Math.max(0, Number(event.target.value) || 0) }
+                              : entry,
+                          ),
+                        )
+                      }
+                      type="number"
+                      value={line.quantity}
                     />
-                  </td>
-                  <td>
+                    <span className="admin-order-stepper-uom">{uomLabel}</span>
+                    <button
+                      className="admin-order-stepper-button"
+                      disabled={disabled}
+                      onClick={() =>
+                        setLines((current) =>
+                          current.map((entry) =>
+                            entry.id === line.id
+                              ? { ...entry, quantity: entry.quantity + 1 }
+                              : entry,
+                          ),
+                        )
+                      }
+                      type="button"
+                    >
+                      +
+                    </button>
+                  </div>
+                </label>
+
+                <label className="admin-order-card-field">
+                  <span>Unit Price</span>
+                  <input
+                    className="admin-order-line-input"
+                    disabled={disabled}
+                    inputMode="decimal"
+                    name={`originalUnitPrice:${line.id}`}
+                    onChange={(event) =>
+                      setLines((current) =>
+                        current.map((entry) =>
+                          entry.id === line.id
+                            ? { ...entry, originalUnitPrice: event.target.value }
+                            : entry,
+                        ),
+                      )
+                    }
+                    type="text"
+                    value={line.originalUnitPrice}
+                  />
+                </label>
+
+                <label className="admin-order-card-field">
+                  <span>Discount</span>
+                  <div className="admin-order-suffix-input">
                     <input
                       className="admin-order-line-input"
                       disabled={disabled}
@@ -276,68 +307,111 @@ export function OrderApprovalEditor({
                       type="text"
                       value={line.discountPercent}
                     />
-                  </td>
-                  <td>
-                    <strong className="admin-order-live-subtotal">{formatCurrency(lineSubtotal)}</strong>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    <span className="admin-order-suffix-label">% off</span>
+                  </div>
+                </label>
+              </div>
+            </section>
+          );
+        })}
       </div>
 
-      <div className="admin-order-extra-fields">
-        <label className="admin-order-note-field">
-          <span>Sales Rep Notes</span>
-          <textarea
-            defaultValue={salesRepNote ?? ""}
-            disabled={disabled}
-            name="salesRepNote"
-            placeholder="Add any notes the customer should see with this order."
-            rows={4}
-          />
-        </label>
+      <div className="admin-order-bottom-grid">
+        <div className="admin-order-extra-fields">
+          <label className="admin-order-note-field">
+            <span>Sales Rep Notes</span>
+            <textarea
+              defaultValue={salesRepNote ?? ""}
+              disabled={disabled}
+              name="salesRepNote"
+              placeholder="Add any notes the customer should see with this order."
+              rows={4}
+            />
+          </label>
+        </div>
 
-        <div className="admin-order-financial-grid">
-          <label className="admin-order-note-field">
-            <span>Freight</span>
-            <input
-              className="admin-order-line-input"
-              disabled={disabled}
-              inputMode="decimal"
-              name="freightAmount"
-              onChange={(event) => setCurrentFreightAmount(event.target.value)}
-              placeholder="0.00"
-              type="text"
-              value={currentFreightAmount}
-            />
-          </label>
-          <label className="admin-order-note-field">
-            <span>Tax Label</span>
-            <input
-              className="admin-order-line-input"
-              disabled={disabled}
-              name="taxName"
-              onChange={(event) => setCurrentTaxName(event.target.value)}
-              placeholder="Tax / 83501"
-              type="text"
-              value={currentTaxName}
-            />
-          </label>
-          <label className="admin-order-note-field">
-            <span>Tax Rate %</span>
-            <input
-              className="admin-order-line-input"
-              disabled={disabled}
-              inputMode="decimal"
-              name="taxRate"
-              onChange={(event) => setCurrentTaxRate(event.target.value)}
-              placeholder="0.00"
-              type="text"
-              value={currentTaxRate}
-            />
-          </label>
+        <div className="admin-order-side-financials">
+          <div className="admin-order-financial-grid">
+            <label className="admin-order-note-field">
+              <span>Freight</span>
+              <input
+                className="admin-order-line-input"
+                disabled={disabled}
+                inputMode="decimal"
+                name="freightAmount"
+                onChange={(event) => setCurrentFreightAmount(event.target.value)}
+                placeholder="0.00"
+                type="text"
+                value={currentFreightAmount}
+              />
+            </label>
+            <label className="admin-order-note-field">
+              <span>Tax Label</span>
+              <input
+                className="admin-order-line-input"
+                disabled={disabled}
+                name="taxName"
+                onChange={(event) => setCurrentTaxName(event.target.value)}
+                placeholder="Tax / 83501"
+                type="text"
+                value={currentTaxName}
+              />
+            </label>
+            <label className="admin-order-note-field">
+              <span>Tax Rate %</span>
+              <input
+                className="admin-order-line-input"
+                disabled={disabled}
+                inputMode="decimal"
+                name="taxRate"
+                onChange={(event) => setCurrentTaxRate(event.target.value)}
+                placeholder="0.00"
+                type="text"
+                value={currentTaxRate}
+              />
+            </label>
+          </div>
+
+          <div className="profile-order-summary admin-order-summary">
+            <div className="profile-order-summary-row">
+              <span>Subtotal</span>
+              <strong>{formatCurrency(disabled ? parseMoney(initialSubtotal) : computed.subtotal)}</strong>
+            </div>
+            {(disabled ? Number(freightAmount) : computed.freightAmount) > 0 ? (
+              <div className="profile-order-summary-row">
+                <span>Freight</span>
+                <strong>{formatCurrency(disabled ? parseMoney(freightAmount) : computed.freightAmount)}</strong>
+              </div>
+            ) : null}
+            {(disabled ? parseMoney(taxAmount) : computed.taxAmount) > 0 ? (
+              <div className="profile-order-summary-row">
+                <span>
+                  {(disabled ? initialTaxName : currentTaxName)
+                    ? `${disabled ? initialTaxName : currentTaxName} ${parsePercent(disabled ? initialTaxRate ?? "0" : currentTaxRate).toFixed(2)}%`
+                    : "Tax"}
+                </span>
+                <strong>{formatCurrency(disabled ? parseMoney(taxAmount) : computed.taxAmount)}</strong>
+              </div>
+            ) : null}
+            {(disabled ? initialAdjustments : adjustments).map((adjustment) => (
+              <div className="profile-order-summary-row" key={adjustment.id}>
+                <span>{adjustment.label}</span>
+                <strong>{formatCurrency(parseMoney(adjustment.amount))}</strong>
+              </div>
+            ))}
+            <div className="profile-order-summary-row profile-order-summary-total">
+              <span>Total</span>
+              <strong>{formatCurrency(disabled ? parseMoney(initialTotal) : computed.total)}</strong>
+            </div>
+          </div>
+
+          {!disabled ? (
+            <div className="admin-order-submit-row">
+              <button className="primary-button" type="submit">
+                Approve Order
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {adjustments.map((adjustment) => (
@@ -347,39 +421,6 @@ export function OrderApprovalEditor({
             <input name={`adjustmentAmount:${adjustment.id}`} type="hidden" value={adjustment.amount} />
           </div>
         ))}
-      </div>
-
-      <div className="profile-order-summary admin-order-summary">
-        <div className="profile-order-summary-row">
-          <span>Subtotal</span>
-          <strong>{formatCurrency(disabled ? parseMoney(initialSubtotal) : computed.subtotal)}</strong>
-        </div>
-        {(disabled ? Number(freightAmount) : computed.freightAmount) > 0 ? (
-          <div className="profile-order-summary-row">
-            <span>Freight</span>
-            <strong>{formatCurrency(disabled ? parseMoney(freightAmount) : computed.freightAmount)}</strong>
-          </div>
-        ) : null}
-        {(disabled ? parseMoney(taxAmount) : computed.taxAmount) > 0 ? (
-          <div className="profile-order-summary-row">
-            <span>
-              {(disabled ? initialTaxName : currentTaxName)
-                ? `${disabled ? initialTaxName : currentTaxName} ${parsePercent(disabled ? initialTaxRate ?? "0" : currentTaxRate).toFixed(2)}%`
-                : "Tax"}
-            </span>
-            <strong>{formatCurrency(disabled ? parseMoney(taxAmount) : computed.taxAmount)}</strong>
-          </div>
-        ) : null}
-        {(disabled ? initialAdjustments : adjustments).map((adjustment) => (
-          <div className="profile-order-summary-row" key={adjustment.id}>
-            <span>{adjustment.label}</span>
-            <strong>{formatCurrency(parseMoney(adjustment.amount))}</strong>
-          </div>
-        ))}
-        <div className="profile-order-summary-row profile-order-summary-total">
-          <span>Total</span>
-          <strong>{formatCurrency(disabled ? parseMoney(initialTotal) : computed.total)}</strong>
-        </div>
       </div>
     </form>
   );

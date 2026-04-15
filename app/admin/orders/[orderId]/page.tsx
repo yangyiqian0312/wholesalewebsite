@@ -6,21 +6,6 @@ import { OrderApprovalEditor } from "../../../../components/admin/order-approval
 import { PageBreadcrumbs } from "../../../../components/shared/page-breadcrumbs";
 import { requireAdminPortalUser } from "../../../../utils/admin-auth";
 
-function DetailBlock({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="admin-application-block">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
 function formatCurrency(value: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -28,12 +13,19 @@ function formatCurrency(value: string) {
   }).format(Number(value));
 }
 
-function formatDiscount(value: string | null) {
-  return value && Number(value) > 0 ? `${Number(value).toFixed(2)}%` : "-";
-}
-
-function formatQuantity(quantity: number, uomName: string | null) {
-  return `${quantity} ${uomName || "ea."}`;
+function getOrderStatusTone(status: string) {
+  switch (status) {
+    case "SUBMITTED":
+      return "admin-order-status-pending";
+    case "APPROVED":
+      return "admin-order-status-open";
+    case "PAID":
+      return "admin-order-status-paid";
+    case "SHIPPED":
+      return "admin-order-status-shipped";
+    default:
+      return "admin-order-status-cancelled";
+  }
 }
 
 export default async function AdminOrderDetailPage({
@@ -93,39 +85,21 @@ export default async function AdminOrderDetailPage({
       <section className="admin-hero panel">
         <div>
           <p className="admin-hero-kicker">Order Detail</p>
-          <h1>{order.inflowOrderNumber || order.inflowSalesOrderId || order.id}</h1>
+          <div className="admin-order-title-row">
+            <h1>{order.inflowOrderNumber || order.inflowSalesOrderId || order.id}</h1>
+            <span className={`status-tag admin-order-status-pill ${getOrderStatusTone(order.status)}`}>
+              {formatOrderStatusLabel(order.status)}
+            </span>
+          </div>
           <p className="admin-hero-copy">
-            {order.customerName} | {order.customerEmail} | {order.businessName}
+            Submitted {formatAdminDate(order.submittedAt)}
           </p>
         </div>
         <div>
-          <Link className="text-button" href="/admin/orders">
-            Back to order list
+          <Link aria-label="Back to order list" className="admin-order-back-button" href="/admin/orders">
+            <span aria-hidden="true">←</span>
           </Link>
         </div>
-      </section>
-
-      <section className="admin-summary-grid">
-        <article className="panel admin-summary-card">
-          <span>Status</span>
-          <strong>{formatOrderStatusLabel(order.status)}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Submitted</span>
-          <strong>{formatAdminDate(order.submittedAt)}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Subtotal</span>
-          <strong>{formatCurrency(order.subtotalAmount)}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Freight</span>
-          <strong>{formatCurrency(order.freightAmount)}</strong>
-        </article>
-        <article className="panel admin-summary-card">
-          <span>Total</span>
-          <strong>{formatCurrency(order.totalAmount)}</strong>
-        </article>
       </section>
 
       {feedbackMessage ? <p className="admin-inline-message">{feedbackMessage}</p> : null}
@@ -136,67 +110,101 @@ export default async function AdminOrderDetailPage({
         </p>
       ) : null}
 
-      <section className="panel admin-application-card">
-        <div className="table-panel-header">
-          <div>
-            <h2>Order Information</h2>
-            <p className="panel-subtitle">Customer and order review details stored for this wholesale order</p>
-          </div>
+      <section className="admin-order-layout">
+        <div className="admin-order-main">
+          <OrderApprovalEditor
+            action={approveOrderAction}
+            disabled={isApproved || isCancelled}
+            freightAmount={order.freightAmount}
+            initialAdjustments={order.adjustments.map((adjustment) => ({
+              id: adjustment.id,
+              label: adjustment.label,
+              amount: Number(adjustment.amount).toFixed(2),
+            }))}
+            initialLines={order.lines}
+            initialSubtotal={order.subtotalAmount}
+            initialTaxName={order.taxName}
+            initialTaxRate={order.taxRate}
+            initialTotal={order.totalAmount}
+            orderId={order.id}
+            salesRepNote={order.salesRepNote}
+            taxAmount={order.taxAmount}
+          />
+
+          {canCancelOrder ? (
+            <form action={cancelOrderAction} className="panel admin-application-card">
+              <input name="orderId" type="hidden" value={order.id} />
+              <div className="table-panel-header">
+                <div>
+                  <h2>Cancellation</h2>
+                  <p className="panel-subtitle">
+                    {order.customerCancelRequestedAt
+                      ? "Customer requested cancellation. Sales can confirm the cancellation here."
+                      : "Cancel this order from the admin portal and sync the cancellation to Inflow when a sales order exists."}
+                  </p>
+                </div>
+                <button className="text-button text-button-danger" type="submit">
+                  Cancel Order
+                </button>
+              </div>
+            </form>
+          ) : null}
         </div>
 
-        <div className="admin-application-grid">
-          <Link className="admin-application-block admin-application-block-wide admin-customer-link" href={`/admin/users/${order.applicationId}`}>
-            <span>Customer</span>
-            <strong>{order.customerName}</strong>
-            <small>{order.customerEmail} | {order.businessName}</small>
-          </Link>
-          <DetailBlock label="Approved By" value={order.approvedByEmail || "Not approved yet"} />
-          <DetailBlock label="Approved At" value={order.approvedAt ? formatAdminDate(order.approvedAt) : "Not approved yet"} />
-          <DetailBlock label="Inflow Order Number" value={order.inflowOrderNumber || "Not created yet"} />
-          <DetailBlock label="Inflow Sales Order ID" value={order.inflowSalesOrderId || "Not created yet"} />
-          <DetailBlock label="Cancelled At" value={order.cancelledAt ? formatAdminDate(order.cancelledAt) : "Active"} />
-          <DetailBlock label="Cancelled By" value={order.cancelledByEmail || "Not cancelled"} />
-          <DetailBlock label="Application ID" value={order.applicationId} />
-        </div>
-      </section>
-
-      {canCancelOrder ? (
-        <form action={cancelOrderAction} className="panel admin-application-card">
-          <input name="orderId" type="hidden" value={order.id} />
-          <div className="table-panel-header">
-            <div>
-              <h2>Cancellation</h2>
-              <p className="panel-subtitle">
-                {order.customerCancelRequestedAt
-                  ? "Customer requested cancellation. Sales can confirm the cancellation here."
-                  : "Cancel this order from the admin portal and sync the cancellation to Inflow when a sales order exists."}
-              </p>
+        <aside className="admin-order-sidebar">
+          <section className="panel admin-application-card admin-order-sidebar-card">
+            <div className="admin-order-sidebar-head">
+              <h2>Customer</h2>
             </div>
-            <button className="text-button text-button-danger" type="submit">
-              Cancel Order
-            </button>
-          </div>
-        </form>
-      ) : null}
+            <Link className="admin-order-customer-link" href={`/admin/users/${order.applicationId}`}>
+              <strong>{order.customerName}</strong>
+              <span>{order.customerEmail}</span>
+              <span>{order.businessName}</span>
+            </Link>
+          </section>
 
-      <OrderApprovalEditor
-        action={approveOrderAction}
-        disabled={isApproved || isCancelled}
-        freightAmount={order.freightAmount}
-        initialAdjustments={order.adjustments.map((adjustment) => ({
-          id: adjustment.id,
-          label: adjustment.label,
-          amount: Number(adjustment.amount).toFixed(2),
-        }))}
-        initialLines={order.lines}
-        initialSubtotal={order.subtotalAmount}
-        initialTaxName={order.taxName}
-        initialTaxRate={order.taxRate}
-        initialTotal={order.totalAmount}
-        orderId={order.id}
-        salesRepNote={order.salesRepNote}
-        taxAmount={order.taxAmount}
-      />
+          <section className="panel admin-application-card admin-order-sidebar-card">
+            <div className="admin-order-sidebar-head">
+              <h2>Order Info</h2>
+            </div>
+            <div className="admin-order-sidebar-list admin-order-sidebar-list-meta">
+              <div className="admin-order-sidebar-row">
+                <span>Approved by</span>
+                <strong>{order.approvedByEmail || "Not approved yet"}</strong>
+              </div>
+              <div className="admin-order-sidebar-row">
+                <span>Approved at</span>
+                <strong>{order.approvedAt ? formatAdminDate(order.approvedAt) : "Not approved yet"}</strong>
+              </div>
+              <div className="admin-order-sidebar-row">
+                <span>Inflow order number</span>
+                <strong>{order.inflowOrderNumber || "Not created yet"}</strong>
+              </div>
+              <div className="admin-order-sidebar-row">
+                <span>Inflow sales order ID</span>
+                <strong>{order.inflowSalesOrderId || "Not created yet"}</strong>
+              </div>
+              <div className="admin-order-sidebar-row">
+                <span>Cancelled</span>
+                <strong>{order.cancelledAt ? formatAdminDate(order.cancelledAt) : "Active"}</strong>
+              </div>
+              <div className="admin-order-sidebar-row">
+                <span>Application ID</span>
+                <strong>{order.applicationId}</strong>
+              </div>
+            </div>
+
+            {canCancelOrder ? (
+              <form action={cancelOrderAction} className="admin-order-sidebar-action">
+                <input name="orderId" type="hidden" value={order.id} />
+                <button className="text-button text-button-danger" type="submit">
+                  Cancel Order
+                </button>
+              </form>
+            ) : null}
+          </section>
+        </aside>
+      </section>
     </div>
   );
 }

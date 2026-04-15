@@ -32,6 +32,7 @@ const booleanQueryParam = z
 const productQuerySchema = z.object({
   include: z.string().min(1).optional(),
   inStockOnly: booleanQueryParam.default(true),
+  includeSummary: booleanQueryParam.default(false),
   smart: z.string().min(1).optional(),
   listingStatus: z
     .enum(["active", "oos"])

@@ -62,6 +62,7 @@ type WholesaleOrderLineRecord = {
   productId: string;
   productName: string | null;
   productCode: string | null;
+  imageSmallUrl: string | null;
   submittedQuantity: number;
   quantity: number;
   salesUomName: string | null;
@@ -166,6 +167,66 @@ type PersistedWholesaleOrderLine = {
   submittedLineTotal: { toString(): string };
   lineTotal: { toString(): string };
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractCatalogProductImageUrl(rawPayload: unknown) {
+  if (!isRecord(rawPayload)) {
+    return null;
+  }
+
+  const defaultImage = isRecord(rawPayload.defaultImage) ? rawPayload.defaultImage : null;
+
+  return (
+    readString(defaultImage?.mediumUrl) ||
+    readString(defaultImage?.smallUrl) ||
+    readString(defaultImage?.thumbUrl) ||
+    readString(defaultImage?.largeUrl) ||
+    readString(defaultImage?.originalUrl) ||
+    readString(rawPayload.imageSmallUrl) ||
+    null
+  );
+}
+
+async function attachLineImagesToOrders<T extends WholesaleOrderRecord>(orders: readonly T[]) {
+  const productIds = [...new Set(
+    orders.flatMap((order) => order.lines.map((line) => line.productId).filter(Boolean)),
+  )];
+
+  if (!productIds.length) {
+    return orders;
+  }
+
+  const products = await prisma.catalogProduct.findMany({
+    where: {
+      inflowProductId: {
+        in: productIds,
+      },
+    },
+    select: {
+      inflowProductId: true,
+      rawPayload: true,
+    },
+  });
+
+  const imageUrlByProductId = new Map(
+    products.map((product) => [product.inflowProductId, extractCatalogProductImageUrl(product.rawPayload)]),
+  );
+
+  return orders.map((order) => ({
+    ...order,
+    lines: order.lines.map((line) => ({
+      ...line,
+      imageSmallUrl: imageUrlByProductId.get(line.productId) ?? null,
+    })),
+  })) as T[];
+}
 
 function toMoneyNumber(value: string) {
   const numericValue = Number(value.replace(/[^0-9.-]/g, ""));
@@ -464,6 +525,7 @@ async function createLocalWholesaleOrder(
       productId: item.productId,
       productName: item.productName?.trim() || null,
       productCode: item.productCode?.trim() || null,
+      imageSmallUrl: null,
       submittedQuantity: quantity,
       quantity,
       salesUomName: item.salesUomName?.trim() || item.standardUomName?.trim() || null,
@@ -564,11 +626,11 @@ export async function fetchWholesaleOrdersByFilter(filters?: {
   const typedOrders = orders as unknown as WholesaleOrderRecord[];
 
   if (!filters?.customerEmail && !filters?.applicationId) {
-    return typedOrders;
+    return attachLineImagesToOrders(typedOrders);
   }
 
   const syncedOrders = await Promise.all(typedOrders.map((order) => syncCancelledStatusFromInflow(order)));
-  return syncedOrders.filter((order): order is WholesaleOrderRecord => Boolean(order));
+  return attachLineImagesToOrders(syncedOrders.filter((order): order is WholesaleOrderRecord => Boolean(order)));
 }
 
 export async function fetchWholesaleOrderById(orderId: string) {
@@ -579,7 +641,14 @@ export async function fetchWholesaleOrderById(orderId: string) {
     include: buildWholesaleOrderInclude(),
   });
 
-  return syncCancelledStatusFromInflow((order as unknown as WholesaleOrderRecord | null) ?? null);
+  const syncedOrder = await syncCancelledStatusFromInflow((order as unknown as WholesaleOrderRecord | null) ?? null);
+
+  if (!syncedOrder) {
+    return null;
+  }
+
+  const [orderWithImages] = await attachLineImagesToOrders([syncedOrder]);
+  return orderWithImages;
 }
 
 export async function submitSalesOrderForApprovedCustomer(
